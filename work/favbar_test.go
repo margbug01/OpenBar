@@ -130,7 +130,7 @@ func TestMoveTheBar(t *testing.T) {
 }
 
 // Settings from before the bar get the default favorites; an emptied list
-// stays empty; tools Candle does not have are dropped.
+// stays empty; tools OpenBar does not have are dropped.
 func TestFavoritesInTheSettings(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "settings.json")

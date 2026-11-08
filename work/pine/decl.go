@@ -344,10 +344,10 @@ func compileFill(c *compiler, a []cx, x *callX) (cx, error) {
 		return cx{}, errAt(x.t, "fill 的前两个参数要都是 plot() 的结果，或都是 hline() 的结果")
 	}
 	colA := a[2]
-	if given(a[7]) { // the gradient: Candle takes its top color
+	if given(a[7]) { // the gradient: OpenBar takes its top color
 		colA = a[7]
 	} else if given(colA) && colA.k == kFloat && len(x.args) >= 6 && x.args[2].name == "" {
-		return cx{}, errAt(x.t, "Candle 只支持纯色的 fill，渐变请写 top_color = …")
+		return cx{}, errAt(x.t, "OpenBar 只支持纯色的 fill，渐变请写 top_color = …")
 	}
 	col, _, _ := colorArg(colA, 0x2962ff1a)
 	title, _ := konstStr(a[3], "Fill")
@@ -582,7 +582,7 @@ func init() {
 	}
 }
 
-// skipped are the namespaces whose constants only what Candle skips takes.
+// skipped are the namespaces whose constants only what OpenBar skips takes.
 var skipped = map[string]bool{}
 
 func (c *compiler) volumeIndex(sign float64) cx {

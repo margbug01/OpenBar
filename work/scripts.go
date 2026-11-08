@@ -14,7 +14,7 @@ import (
 	"candle/pine"
 )
 
-// The indicators written in Pine Script that Candle ships, after
+// The indicators written in Pine Script that OpenBar ships, after
 // TradingView's own scripts: run by the same interpreter as the user's.
 
 //go:embed indicators/*.pine

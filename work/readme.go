@@ -3,23 +3,23 @@ package main
 // readme is the indicators folder's README: for the user, and for an agent
 // asked to write an indicator. It holds no backquotes, being one string.
 const readme = `<!-- ` + readmeVersion + ` -->
-# Candle 自定义指标
+# OpenBar 自定义指标
 
-这个文件夹里的 .pine 文件就是 Candle 的自定义指标。写法是 TradingView 的 Pine Script（v5 / v6 的大部分，v4 也能跑一部分）。
+这个文件夹里的 .pine 文件就是 OpenBar 的自定义指标。写法是 TradingView 的 Pine Script（v5 / v6 的大部分，v4 也能跑一部分）。
 
-- Candle 开着时，每 1.5 秒看一次这个文件夹。**新放进来的文件会自动加到当前图表上**；已经在图上的，文件一改马上重算。
+- OpenBar 开着时，每 1.5 秒看一次这个文件夹。**新放进来的文件会自动加到当前图表上**；已经在图上的，文件一改马上重算。
 - 顶栏「指标」›「自定义」里能新建、从剪贴板导入、编辑、删除，也能把这里的指标加到图上。
 - 写错了不会崩：图上会提示错在第几行，编辑器里也会标出来。
 
 ## 给 Agent 的说明
 
-用户让你给 Candle 写指标时，照下面做：
+用户让你给 OpenBar 写指标时，照下面做：
 
-1. 一个指标一个文件，放在这个文件夹，扩展名 .pine，UTF-8 编码。**文件名就是它在 Candle 里的身份**，改名等于换了一个指标（图上那个会变成「找不到脚本」）。显示的名字取 indicator() 的第一个参数。
+1. 一个指标一个文件，放在这个文件夹，扩展名 .pine，UTF-8 编码。**文件名就是它在 OpenBar 里的身份**，改名等于换了一个指标（图上那个会变成「找不到脚本」）。显示的名字取 indicator() 的第一个参数。
 2. 第一行写 //@version=6，必须有一行 indicator("名字", overlay = true 或 false)：overlay = true 画在 K 线上，false 画在 K 线下面单独一栏。
-3. 写完等 2 秒，读同一文件夹的 _status.json：每个文件一条，ok 为 false 时 error 里写着第几行、什么错，改好再看一次。warnings 是 Candle 跳过的东西（比如 label）。
+3. 写完等 2 秒，读同一文件夹的 _status.json：每个文件一条，ok 为 false 时 error 里写着第几行、什么错，改好再看一次。warnings 是 OpenBar 跳过的东西（比如 label）。
 4. 改已有的指标就直接改它的文件；要新的就新建文件，别改别人的文件名。
-5. 不要写这个文件夹以外的东西，也不用碰 Candle 的设置。
+5. 不要写这个文件夹以外的东西，也不用碰 OpenBar 的设置。
 
 ## 支持什么
 

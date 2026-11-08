@@ -43,7 +43,7 @@ func main() {
 	})
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
-			Title: "Candle", Width: 1320, Height: 820, MinWidth: 960, MinHeight: 560, StateKey: "main",
+			Title: "OpenBar", Width: 1320, Height: 820, MinWidth: 960, MinHeight: 560, StateKey: "main",
 			TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: titleBarHeight,
 			Content: ui.View(a.render),
 		})

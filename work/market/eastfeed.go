@@ -19,7 +19,7 @@ import (
 // prices, both from China without a proxy. A shares come 3 seconds late, Hong
 // Kong's at once. It keeps a month and a half of minutes (a day of 1-minute
 // bars) and the days and weeks since a market listed. Neither streams the
-// way Binance does: Candle asks again every few seconds, as its site does.
+// way Binance does: OpenBar asks again every few seconds, as its site does.
 const (
 	eastHisBase  = "https://push2his.eastmoney.com"
 	eastPushBase = "https://push2.eastmoney.com"
@@ -68,7 +68,7 @@ func (in Instrument) trading(t time.Time) bool {
 
 // Eastmoney shuts out an address that asks too much: its quote servers hang
 // up on it, for an hour or more, and asking meanwhile may keep it shut. So
-// after a request fails Candle stops asking for a while, a minute at first,
+// after a request fails OpenBar stops asking for a while, a minute at first,
 // doubling to a quarter of an hour, and asks again once that is over; one
 // that comes through ends the rest. The search, on another server, is apart.
 // Requests go out eastGap apart at least, so that eight charts of A shares
@@ -83,9 +83,9 @@ var (
 	eastGates   sync.Map // by the prices' base URL: *eastGate
 )
 
-// ErrEastmoneyResting is what a request gets while Candle rests from
+// ErrEastmoneyResting is what a request gets while OpenBar rests from
 // asking Eastmoney.
-var ErrEastmoneyResting = errors.New("东方财富暂时拒绝了这台电脑的请求（问得太频繁会被封一阵），Candle 先歇几分钟再问")
+var ErrEastmoneyResting = errors.New("东方财富暂时拒绝了这台电脑的请求（问得太频繁会被封一阵），OpenBar 先歇几分钟再问")
 
 type eastGate struct {
 	mu    sync.Mutex
@@ -94,7 +94,7 @@ type eastGate struct {
 	next  time.Time // when the next request may go
 }
 
-// fetch gets base+path unless Candle rests from Eastmoney, eastGap after
+// fetch gets base+path unless OpenBar rests from Eastmoney, eastGap after
 // the request before at least, and rests after a request that fails (not
 // one ctx ended).
 func (e Eastmoney) fetch(ctx context.Context, base, path string) ([]byte, error) {
@@ -236,7 +236,7 @@ func (e Eastmoney) klines(ctx context.Context, in Instrument, klt int, day strin
 
 // eastBars reads Eastmoney's bars, "2026-10-29 09:35,open,close,high,low,
 // volume": a minute bar stamped in Beijing time at its end, a day by its
-// date, a week by its last trading day's. Candle's open at their beginnings:
+// date, a week by its last trading day's. OpenBar's open at their beginnings:
 // 9:30, a day at its market's opening, a week at its Monday's. Shanghai's and
 // Shenzhen's volumes come in lots of 100 shares.
 func (in Instrument) eastBars(lines []string, klt int) ([]Bar, error) {

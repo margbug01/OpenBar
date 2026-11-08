@@ -11,7 +11,7 @@ import (
 )
 
 // Eastmoney's search answers with its markets, the US stocks among them by
-// their Chinese names; Candle takes the US stocks, as Yahoo names them.
+// their Chinese names; OpenBar takes the US stocks, as Yahoo names them.
 func TestEastmoneySuggest(t *testing.T) {
 	var asked string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

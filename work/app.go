@@ -114,7 +114,7 @@ type application struct {
 	later      []func()
 
 	// The user's scripts: the folder they are in (beside the settings
-	// unless set), the words on the chart about them, those Candle saved
+	// unless set), the words on the chart about them, those OpenBar saved
 	// itself, and the editor.
 	indDir  string
 	notices []notice

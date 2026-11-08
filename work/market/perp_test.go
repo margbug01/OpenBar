@@ -58,7 +58,7 @@ func fakePerp(t *testing.T, asked *[]string) (Perp, func()) {
 	return Perp{HTTP: srv.Client(), Base: srv.URL, WS: ws}, srv.Close
 }
 
-// Candle's names for perpetuals end in .P; Binance's do not.
+// OpenBar's names for perpetuals end in .P; Binance's do not.
 func TestPerp(t *testing.T) {
 	var asked []string
 	p, done := fakePerp(t, &asked)

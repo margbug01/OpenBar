@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo"
 )
 
-// setMenu gives Candle a menu bar on macOS, in Chinese, with the settings in
+// setMenu gives OpenBar a menu bar on macOS, in Chinese, with the settings in
 // the app menu. Windows has none: the title bar is the app's own.
 //
 // It has no Edit menu. Its Undo, Copy and Paste would take Cmd+Z, Cmd+C and
@@ -34,19 +34,19 @@ func (a *application) setMenu() {
 		})
 	}
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "Candle", Submenu: []*mygo.MenuItem{
-			{Role: mygo.RoleAbout, Label: "关于 Candle"},
+		{Label: "OpenBar", Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleAbout, Label: "关于 OpenBar"},
 			{Label: "检查更新…", Click: checkUpdate},
 			mygo.Separator(),
 			{Label: "设置…", Accelerator: "CmdOrCtrl+,", Click: settings},
 			mygo.Separator(),
 			{Role: mygo.RoleServices, Label: "服务"},
 			mygo.Separator(),
-			{Role: mygo.RoleHide, Label: "隐藏 Candle"},
+			{Role: mygo.RoleHide, Label: "隐藏 OpenBar"},
 			{Role: mygo.RoleHideOthers, Label: "隐藏其他"},
 			{Role: mygo.RoleUnhide, Label: "全部显示"},
 			mygo.Separator(),
-			{Role: mygo.RoleQuit, Label: "退出 Candle"},
+			{Role: mygo.RoleQuit, Label: "退出 OpenBar"},
 		}},
 		{Label: "显示", Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleToggleFullScreen, Label: "进入全屏幕"},

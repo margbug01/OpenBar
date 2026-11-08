@@ -45,7 +45,7 @@ func (y Yahoo) base() string {
 	return yahooBase
 }
 
-// An Instrument is a market Yahoo serves, as Candle names it: "CME:NQ" for a
+// An Instrument is a market Yahoo serves, as OpenBar names it: "CME:NQ" for a
 // futures contract (the front month, rolled as Yahoo rolls it), "US:AAPL"
 // for a stock or ETF listed in New York.
 type Instrument struct {
@@ -67,7 +67,7 @@ type Instrument struct {
 	Venue string // where it trades, for the legend: "上交所", "Cboe"; "", the CME's or New York's
 }
 
-// The CME contracts Candle offers. Yahoo has the micro contracts' own trades
+// The CME contracts OpenBar offers. Yahoo has the micro contracts' own trades
 // too: MNQ is not NQ's prices under another name.
 var Futures = []Instrument{
 	future("NQ", "纳指 E-mini", "na zhi", 0.25),
@@ -86,7 +86,7 @@ func future(code, name, pinyin string, tick float64) Instrument {
 	return Instrument{ID: "CME:" + code, Code: code, Name: name, Pinyin: pinyin, Ticker: code + "=F", Tick: tick, Future: true, Delay: 10 * time.Minute}
 }
 
-// IsYahoo is whether Candle's name for a market is one of Yahoo's: a CME
+// IsYahoo is whether OpenBar's name for a market is one of Yahoo's: a CME
 // future, a US stock, a Korean one or the VIX.
 func IsYahoo(id string) bool {
 	for _, p := range []string{"CME:", "US:", "KRX:", "CBOE:"} {
@@ -97,7 +97,7 @@ func IsYahoo(id string) bool {
 	return false
 }
 
-// InstrumentOf is the market Candle names id.
+// InstrumentOf is the market OpenBar names id.
 func InstrumentOf(id string) (Instrument, bool) {
 	if code, ok := strings.CutPrefix(id, "US:"); ok && code != "" {
 		// A cent, until Symbols reads the stock's own (a hundredth of one under a dollar).
@@ -133,7 +133,7 @@ var yahooIntervals = map[string]yahooInterval{
 	"1wk": {"1wk", 604_800_000, 0, 0},
 }
 
-// A barPlan is how Candle's bars of a size are made from Yahoo's: from its
+// A barPlan is how OpenBar's bars of a size are made from Yahoo's: from its
 // bars of src, group of them to one (1: as they are) counting from start,
 // when the session holding a time began, and of them only those keep
 // takes (nil: all).

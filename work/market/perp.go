@@ -23,14 +23,14 @@ const (
 	perpWS   = "wss://fstream.binance.com"
 )
 
-// IsPerp is whether Candle's name for a market is a perpetual's: its
+// IsPerp is whether OpenBar's name for a market is a perpetual's: its
 // symbol and ".P", as TradingView writes it, "BTCUSDT.P".
 func IsPerp(id string) bool { return len(id) > 2 && strings.HasSuffix(id, ".P") }
 
-// perpSymbol is Binance's symbol for a perpetual Candle names id.
+// perpSymbol is Binance's symbol for a perpetual OpenBar names id.
 func perpSymbol(id string) string { return strings.TrimSuffix(id, ".P") }
 
-// Perp reads Binance's perpetuals, by Candle's names for them. A client
+// Perp reads Binance's perpetuals, by OpenBar's names for them. A client
 // Timeout bounds REST requests and, for streams, only the handshake.
 type Perp struct {
 	HTTP     *http.Client

@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The search box is Candle's own, not a TextInput: an input method's
+// The search box is OpenBar's own, not a TextInput: an input method's
 // letters are a TextInput's only once chosen, so with Pinyin on, sndk found
 // nothing until Enter, and with input methods turned off for it, 闪迪 could
 // not be typed at all. This box sees the composition as it is typed

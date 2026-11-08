@@ -17,7 +17,7 @@ import (
 // stocks of every market it quotes, by code, by Chinese name (闪迪 is SNDK,
 // SK海力士 SKHY), or by the initials of a name's pinyin (ywd). Its US stocks
 // carry the Chinese names people in China know them by, which Nasdaq's list
-// lacks; its A shares and Hong Kong's are there for when Candle shows them.
+// lacks; its A shares and Hong Kong's are there for when OpenBar shows them.
 // The token is the site's own, the same for everyone. It answers from China
 // without a proxy, in a tenth of a second.
 type Eastmoney struct {
@@ -79,7 +79,7 @@ func (e *Eastmoney) Suggest(ctx context.Context, q string, count int) ([]Suggest
 	return out, nil
 }
 
-// USStocks are the US stocks among s as Candle names them ("US:BRK-B": Yahoo
+// USStocks are the US stocks among s as OpenBar names them ("US:BRK-B": Yahoo
 // writes the class after a dash, Eastmoney after an underscore), in s's
 // order, their Chinese names as Alias.
 func USStocks(s []Suggestion) []Instrument {
@@ -103,7 +103,7 @@ func USStocks(s []Suggestion) []Instrument {
 	return out
 }
 
-// Found are the markets among s Candle has, as it names them, in s's
+// Found are the markets among s OpenBar has, as it names them, in s's
 // order, with the Chinese names Eastmoney gives them as Alias: US stocks,
 // Shanghai's and Shenzhen's A shares and indices, Hong Kong's and Korea's
 // shares, and the indices of Indices (恒生指数).

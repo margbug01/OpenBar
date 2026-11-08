@@ -12,7 +12,7 @@ import (
 // and Cboe's VIX, from Yahoo, 20 and 15 minutes late (Eastmoney has no VIX,
 // and its Korean minutes carry no volume).
 //
-// Candle names them by exchange, as TradingView does: SSE:600795 (国电电力),
+// OpenBar names them by exchange, as TradingView does: SSE:600795 (国电电力),
 // SSE:000001 (上证指数), SZSE:000001 (平安银行), HKEX:00700, HKEX:HSI,
 // KRX:000660, CBOE:VIX.
 
@@ -33,7 +33,7 @@ func zone(name string, hours int) *time.Location {
 
 func hm(h, m int) time.Duration { return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute }
 
-// Indices are the indices Candle offers by name: found by their Chinese
+// Indices are the indices OpenBar offers by name: found by their Chinese
 // names and pinyin, as the futures are. Ticker is the source's code for them.
 var Indices = []Instrument{
 	{ID: "CBOE:VIX", Code: "VIX", Name: "恐慌指数", Pinyin: "kong huang zhi shu", Ticker: "^VIX", Tick: 0.01, Index: true,
@@ -103,7 +103,7 @@ func digits(s string, n int) bool {
 	return len(s) == n && !strings.ContainsFunc(s, func(r rune) bool { return r < '0' || r > '9' })
 }
 
-// IsEastmoney is whether Candle's name for a market is one Eastmoney has
+// IsEastmoney is whether OpenBar's name for a market is one Eastmoney has
 // the bars of: an A share's, a Hong Kong share's, or one of their indices.
 func IsEastmoney(id string) bool {
 	return strings.HasPrefix(id, "SSE:") || strings.HasPrefix(id, "SZSE:") || strings.HasPrefix(id, "HKEX:")
@@ -130,7 +130,7 @@ func (in Instrument) sessions() []session {
 }
 
 // Minutes is how long in's trading day is: A shares' 240 minutes, Hong
-// Kong's 330, a US stock's regular 390; 0 where Candle does not know it.
+// Kong's 330, a US stock's regular 390; 0 where OpenBar does not know it.
 func (in Instrument) Minutes() int {
 	if in.Loc == nil && !in.Future && !in.Index {
 		return 390

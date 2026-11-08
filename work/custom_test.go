@@ -47,7 +47,7 @@ func findInd(a *application, kind string) *indicator {
 	return nil
 }
 
-// A script put in the folder while Candle runs, as an agent puts it there,
+// A script put in the folder while OpenBar runs, as an agent puts it there,
 // goes onto the chart; one with an error says where; one changed is worked
 // out again; one taken away leaves its indicator, settings and all, till it
 // comes back.
@@ -169,7 +169,7 @@ func TestManyScriptsAreOnlyListed(t *testing.T) {
 	}
 }
 
-// The scripts there when Candle opens stay off the chart; the README is
+// The scripts there when OpenBar opens stay off the chart; the README is
 // written for agents.
 func TestFolderAtStart(t *testing.T) {
 	before := customs

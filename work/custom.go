@@ -16,11 +16,11 @@ import (
 )
 
 // The user's own indicators: Pine scripts in the indicators folder beside
-// the settings. Candle looks at the folder every second and a half; what
+// the settings. OpenBar looks at the folder every second and a half; what
 // is new there while it runs goes onto the chart, so that an agent writing
 // a script there puts it before the user; what changes is worked out
-// again. The folder's README tells an agent what Candle runs, and
-// _status.json, which Candle keeps, whether each script does.
+// again. The folder's README tells an agent what OpenBar runs, and
+// _status.json, which OpenBar keeps, whether each script does.
 
 // customs are the scripts in the folder, by key ("pine:" and the file's
 // name), as last read.
@@ -151,7 +151,7 @@ func (a *application) watchScripts() {
 	}()
 }
 
-// takeScripts makes the files read the scripts Candle knows. New ones, read
+// takeScripts makes the files read the scripts OpenBar knows. New ones, read
 // after the first time, go onto the chart, a few at a time.
 func (a *application) takeScripts(files map[string]scriptFile, first bool) {
 	next := map[string]*indKind{}
@@ -393,7 +393,7 @@ func (a *application) writeStatus() {
 	}
 }
 
-const readmeVersion = "candle-indicators-readme 1"
+const readmeVersion = "openbar-indicators-readme 1"
 
 // writeReadme puts the folder's README there, or a newer one over an older.
 func writeReadme(dir string) {

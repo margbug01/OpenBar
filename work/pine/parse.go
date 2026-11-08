@@ -265,11 +265,11 @@ func describe(t token) string {
 }
 
 var unsupportedWords = map[string]string{
-	"import": "Candle 不支持 import 别的库",
-	"export": "Candle 不支持 export（库）",
-	"type":   "Candle 不支持自定义类型（type）",
-	"enum":   "Candle 不支持 enum",
-	"method": "Candle 不支持 method",
+	"import": "OpenBar 不支持 import 别的库",
+	"export": "OpenBar 不支持 export（库）",
+	"type":   "OpenBar 不支持自定义类型（type）",
+	"enum":   "OpenBar 不支持 enum",
+	"method": "OpenBar 不支持 method",
 }
 
 func (p *parser) stmt(level int) (stmt, error) {
@@ -329,7 +329,7 @@ func (p *parser) stmt(level int) (stmt, error) {
 		typ = p.next().text
 	}
 	if p.peek().kind == tkIdent && strings.HasPrefix(p.peek().text, "array") && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "<" {
-		return nil, errAt(p.peek(), "Candle 不支持 array")
+		return nil, errAt(p.peek(), "OpenBar 不支持 array")
 	}
 	if p.peek().kind == tkIdent && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "=" {
 		name := p.next()
@@ -472,14 +472,14 @@ func (p *parser) blockExpr(level int) (expr, error) {
 func (p *parser) forStmt(level int) (stmt, error) {
 	t := p.next()
 	if p.isOp("[") {
-		return nil, errAt(p.peek(), "Candle 不支持 for … in（数组）")
+		return nil, errAt(p.peek(), "OpenBar 不支持 for … in（数组）")
 	}
 	v := p.next()
 	if v.kind != tkIdent {
 		return nil, errAt(v, "for 后面应该是循环变量的名字")
 	}
 	if p.isWord("in") {
-		return nil, errAt(p.peek(), "Candle 不支持 for … in（数组）")
+		return nil, errAt(p.peek(), "OpenBar 不支持 for … in（数组）")
 	}
 	if _, err := p.expect("="); err != nil {
 		return nil, err
@@ -606,7 +606,7 @@ func (p *parser) tupleDecl(level int) (stmt, error) {
 	}
 	p.next()
 	if p.isOp(":=") {
-		return nil, errAt(p.peek(), "Candle 不支持用 := 给 [a, b] 赋值，请用 =")
+		return nil, errAt(p.peek(), "OpenBar 不支持用 := 给 [a, b] 赋值，请用 =")
 	}
 	p.next()
 	x, err := p.valueExpr(level)
@@ -731,7 +731,7 @@ func (p *parser) primary() (expr, error) {
 			return nil, errAt(t, "这里不该出现 %s", t.text)
 		}
 		if strings.HasPrefix(t.text, "array.") || strings.HasPrefix(t.text, "matrix.") || strings.HasPrefix(t.text, "map.") {
-			return nil, errAt(t, "Candle 不支持 %s（数组、矩阵、map）", t.text)
+			return nil, errAt(t, "OpenBar 不支持 %s（数组、矩阵、map）", t.text)
 		}
 		if !p.isOp("(") {
 			return &nameRef{t}, nil

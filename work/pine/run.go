@@ -21,7 +21,7 @@ type Script struct {
 	Fills        []Fill
 	Bgs          []Bg
 	Shapes       []Shape
-	Warnings     []*Error // what Candle skips
+	Warnings     []*Error // what OpenBar skips
 
 	src      string
 	declared bool
@@ -188,7 +188,7 @@ const loopLimit = 200_000
 
 func (m *Machine) loop(n int) {
 	if n >= loopLimit {
-		panic(&RunError{Bar: m.i, Msg: fmt.Sprintf("循环跑了 %d 次还没停，Candle 把它停下了", loopLimit)})
+		panic(&RunError{Bar: m.i, Msg: fmt.Sprintf("循环跑了 %d 次还没停，OpenBar 把它停下了", loopLimit)})
 	}
 }
 

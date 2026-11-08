@@ -918,7 +918,7 @@ func (c *compiler) name(t token, sc *scope) (cx, error) {
 		return cx{}, errAt(t, "%s 是函数，要加括号调用", t.text)
 	}
 	if head, _, ok := strings.Cut(t.text, "."); ok {
-		if v := sc.find(head); v != nil || skipped[head] { // a field of a label or a line, a constant for one: Candle draws none
+		if v := sc.find(head); v != nil || skipped[head] { // a field of a label or a line, a constant for one: OpenBar draws none
 			return naX, nil
 		}
 	}
@@ -941,14 +941,14 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 	ns, _, _ := strings.Cut(x.fn, ".")
 	switch ns {
 	case "label", "line", "box", "table", "polyline", "linefill", "chart":
-		c.warn(x.t, "Candle 不画 label、line、box、table，%s 会被跳过", x.fn)
+		c.warn(x.t, "OpenBar 不画 label、line、box、table，%s 会被跳过", x.fn)
 		return naX, nil
 	case "request":
-		return cx{}, errAt(x.t, "Candle 拿不到别的品种或周期的数据（%s）", x.fn)
+		return cx{}, errAt(x.t, "OpenBar 拿不到别的品种或周期的数据（%s）", x.fn)
 	case "strategy":
-		return cx{}, errAt(x.t, "这是策略脚本里的 %s，Candle 只跑指标", x.fn)
+		return cx{}, errAt(x.t, "这是策略脚本里的 %s，OpenBar 只跑指标", x.fn)
 	case "array", "matrix", "map":
-		return cx{}, errAt(x.t, "Candle 不支持 %s（数组、矩阵、map）", x.fn)
+		return cx{}, errAt(x.t, "OpenBar 不支持 %s（数组、矩阵、map）", x.fn)
 	case "log", "runtime":
 		return naX, nil
 	}
@@ -966,14 +966,14 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 	if !ok {
 		switch x.fn {
 		case "strategy", "library":
-			return cx{}, errAt(x.t, "这是%s脚本，Candle 只跑指标（indicator）", map[string]string{"strategy": "策略", "library": "库"}[x.fn])
+			return cx{}, errAt(x.t, "这是%s脚本，OpenBar 只跑指标（indicator）", map[string]string{"strategy": "策略", "library": "库"}[x.fn])
 		case "barcolor", "alertcondition", "alert", "max_bars_back", "plotcandle", "plotbar":
 			if x.fn == "plotcandle" || x.fn == "plotbar" {
-				c.warn(x.t, "Candle 还不画 %s，会被跳过", x.fn)
+				c.warn(x.t, "OpenBar 还不画 %s，会被跳过", x.fn)
 			}
 			return cx{k: kVoid}, nil
 		}
-		return cx{}, errAt(x.t, "Candle 不认识函数 %s", x.fn)
+		return cx{}, errAt(x.t, "OpenBar 不认识函数 %s", x.fn)
 	}
 	args, err := c.args(x, b.params, sc)
 	if err != nil {
@@ -1060,7 +1060,7 @@ func variadic(params []string) bool {
 	return len(params) > 0 && strings.HasSuffix(params[len(params)-1], "…")
 }
 
-// Arguments Candle has no use for, which any call may be given.
+// Arguments OpenBar has no use for, which any call may be given.
 var ignoredArgs = map[string]bool{"editable": true, "tooltip": true, "inline": true, "group": true, "confirm": true,
 	"display": true, "show_last": true, "trackprice": true, "join": true, "fillgaps": true, "force_overlay": true,
 	"max_bars_back": true, "explicit_plot_zorder": true, "max_lines_count": true, "max_labels_count": true,
@@ -1072,7 +1072,7 @@ var ignoredArgs = map[string]bool{"editable": true, "tooltip": true, "inline": t
 // called: what it keeps, as a moving average in it, is this call's own.
 func (c *compiler) inline(f *funcS, x *callX, sc *scope) (cx, error) {
 	if c.depth > 24 {
-		return cx{}, errAt(x.t, "函数 %s 调用自己，Candle 不支持递归", f.name)
+		return cx{}, errAt(x.t, "函数 %s 调用自己，OpenBar 不支持递归", f.name)
 	}
 	params := make([]string, len(f.params))
 	for i, p := range f.params {

@@ -13,7 +13,7 @@ import (
 // as one types: Nasdaq lists every security traded on its market, NYSE's,
 // Arca's and Cboe's listings too, about 11,000 once warrants, units, rights
 // and preferred shares are left out. The list is a megabyte, published every
-// day; Candle keeps it a week.
+// day; OpenBar keeps it a week.
 const usListURL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqtraded.txt"
 
 // USList downloads Nasdaq's list, for ParseUSList.
@@ -28,7 +28,7 @@ func USList(ctx context.Context, c *http.Client) ([]byte, error) {
 	return body, nil
 }
 
-// ParseUSList reads Nasdaq's list into markets as Candle names them
+// ParseUSList reads Nasdaq's list into markets as OpenBar names them
 // ("US:BRK-B": Yahoo writes the class after a dash), with the popular ones
 // marked (Popular), and adds the popular ones it lacks.
 func ParseUSList(data []byte) ([]Instrument, error) {

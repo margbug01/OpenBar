@@ -50,7 +50,7 @@ var na = math.NaN()
 func TestErrors(t *testing.T) {
 	for _, c := range []struct{ src, msg string }{
 		{"plot(close)", "缺少 indicator"},
-		{"indicator(\"x\")\nplot(ta.nosuch(close))", "2:Candle 不认识函数 ta.nosuch"},
+		{"indicator(\"x\")\nplot(ta.nosuch(close))", "2:OpenBar 不认识函数 ta.nosuch"},
 		{"indicator(\"x\")\nx = request.security(\"AAPL\", \"D\", close)", "2:别的品种"},
 		{"strategy(\"x\")\nplot(close)", "1:策略"},
 		{"indicator(\"x\")\nvar a = array.new<float>()", "2:array"},
@@ -87,7 +87,7 @@ func TestErrors(t *testing.T) {
 	}
 }
 
-// What Candle does not draw is skipped, with a warning, not an error.
+// What OpenBar does not draw is skipped, with a warning, not an error.
 func TestSkipsDrawings(t *testing.T) {
 	s, m := run(t, `//@version=5
 indicator("x", overlay = true)

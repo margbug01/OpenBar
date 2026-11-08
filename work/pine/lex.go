@@ -2,7 +2,7 @@
 // Script (versions 4 to 6): the declarations, inputs, operators, if, for,
 // while and switch, functions of the script's own, history references and
 // most of the ta, math and color functions, and their plots, levels,
-// fills, backgrounds and shapes. What Candle cannot draw (labels, lines,
+// fills, backgrounds and shapes. What OpenBar cannot draw (labels, lines,
 // boxes, tables) is skipped; what it cannot work out (other symbols,
 // strategies, arrays) is an error on the line that asks for it.
 //

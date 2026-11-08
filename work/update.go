@@ -11,7 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Candle updates itself with MyGo's signed updates. mygo build signs each
+// OpenBar updates itself with MyGo's signed updates. mygo build signs each
 // platform's archive and manifest with the release key, and they go up with
 // the GitHub release; work/mygo.json names the repository and holds the
 // public key. The app reads its platform's manifest in the latest release,
@@ -224,7 +224,7 @@ func (a *application) openAbout() {
 // aboutPage is the version and updating.
 func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 	u := &a.upd
-	section(c, t, "Candle")
+	section(c, t, "OpenBar")
 	infoRow(c, t, "版本 "+appVersion(), "照着 TradingView 做的 K 线图，行情来自 Binance 和 Yahoo。和 TradingView、Binance、Yahoo 都没有关系，也不构成任何投资建议", func() {
 		ui.Link(c, "GitHub", "https://github.com/margbug01/Candle")
 	})
@@ -235,7 +235,7 @@ func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 			ui.Link(c, "打开下载页", releasesPage)
 		})
 	case u.stage == updateAvailable:
-		infoRow(c, t, "有新版本 "+u.found.Version, "当前 "+appVersion()+"，更新时 Candle 会重新打开一下", func() {
+		infoRow(c, t, "有新版本 "+u.found.Version, "当前 "+appVersion()+"，更新时 OpenBar 会重新打开一下", func() {
 			if ui.PrimaryButton(c.Key("install-update"), "更新并重启").MinWidth(96).Clicked() {
 				a.installUpdate()
 			}
@@ -252,7 +252,7 @@ func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 			ui.Progress(c, u.progress).Width(160)
 		})
 	case u.stage == updateReady:
-		infoRow(c, t, u.found.Version+" 已经装好", "重新打开 Candle 后生效", func() {
+		infoRow(c, t, u.found.Version+" 已经装好", "重新打开 OpenBar 后生效", func() {
 			if ui.PrimaryButton(c.Key("restart-update"), "立即重启").MinWidth(96).Clicked() {
 				a.restartForUpdate()
 			}
@@ -321,7 +321,7 @@ func (a *application) updateBadge(c *ui.Context, t *ui.Theme, k palette) {
 	}
 	text := "新版本 " + u.found.Version
 	b := ui.ButtonBase(c.Key("update-badge")).Height(26).Padding(0, 10).Shrink(0).Center().Radius(13).Cursor(ui.CursorPointer).
-		Label(text).Tooltip("打开设置 › 关于，更新 Candle").Background(k.chosen)
+		Label(text).Tooltip("打开设置 › 关于，更新 OpenBar").Background(k.chosen)
 	if b.Hovered() {
 		b.Background(k.hover)
 	}

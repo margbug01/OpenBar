@@ -21,7 +21,7 @@ func testBars(n int) []market.Bar {
 	return bars
 }
 
-// Every indicator Candle ships compiles and gives values.
+// Every indicator OpenBar ships compiles and gives values.
 func TestShippedIndicatorsRun(t *testing.T) {
 	files, _ := filepath.Glob("../indicators/*.pine")
 	if len(files) < 21 {

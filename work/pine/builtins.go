@@ -841,7 +841,7 @@ func init() {
 		}},
 		"time": {params: []string{"timeframe", "session", "timezone"}, compile: func(c *compiler, a []cx, x *callX) (cx, error) {
 			if given(a[1]) {
-				return cx{}, errAt(a[1].tok, "Candle 不支持 time() 的交易时段参数")
+				return cx{}, errAt(a[1].tok, "OpenBar 不支持 time() 的交易时段参数")
 			}
 			tf := ""
 			if given(a[0]) {
@@ -1175,7 +1175,7 @@ func timePart(t time.Time, part string) float64 {
 
 func compileTimestamp(c *compiler, a []cx, x *callX) (cx, error) {
 	if given(a[0]) && a[0].k == kStr {
-		return cx{}, errAt(x.t, "Candle 的 timestamp 不支持时区参数")
+		return cx{}, errAt(x.t, "OpenBar 的 timestamp 不支持时区参数")
 	}
 	if err := need(x, a, []string{"year", "month", "day"}, "year", "month", "day"); err != nil {
 		return cx{}, err

@@ -21,7 +21,7 @@ func localAt(loc *time.Location, s string) int64 {
 	return t.UnixMilli()
 }
 
-// Candle names the markets beyond the coins by exchange, as TradingView
+// OpenBar names the markets beyond the coins by exchange, as TradingView
 // does, and knows each one's source, clock and day.
 func TestListedInstruments(t *testing.T) {
 	for _, c := range []struct {
@@ -174,7 +174,7 @@ func times(bars []Bar, loc *time.Location) (s []string) {
 }
 
 // Eastmoney stamps a bar at its end, in Beijing time, a day by its date, a
-// week by its last day's: Candle's open at their beginnings. Hours and 4
+// week by its last day's: OpenBar's open at their beginnings. Hours and 4
 // hours are made of 5 minutes, as TradingView makes them: Hong Kong's hour
 // from 11:30 is half of one. Shanghai's volumes are in lots of 100.
 func TestEastmoneyKlines(t *testing.T) {
@@ -330,9 +330,9 @@ func TestEastmoneyStream(t *testing.T) {
 	}
 }
 
-// Of what Eastmoney's search finds, the markets Candle has, as it names
+// Of what Eastmoney's search finds, the markets OpenBar has, as it names
 // them, with their Chinese names: A shares, indices, Hong Kong's and Korea's
-// shares, US stocks; not Beijing's, nor an index Candle has no clock for.
+// shares, US stocks; not Beijing's, nor an index OpenBar has no clock for.
 func TestFound(t *testing.T) {
 	got := Found([]Suggestion{
 		{Code: "600795", Name: "国电电力", Market: 1}, {Code: "000001", Name: "上证指数", Market: 1},
@@ -409,7 +409,7 @@ func TestEastmoneyPace(t *testing.T) {
 	}
 }
 
-// Once Eastmoney hangs up, Candle asks it nothing for a while, longer each
+// Once Eastmoney hangs up, OpenBar asks it nothing for a while, longer each
 // time, and again once that is over; a request that comes through ends the
 // rest. A market Eastmoney does not know is no failure.
 func TestEastmoneyRests(t *testing.T) {
@@ -472,7 +472,7 @@ func TestEastmoneyRests(t *testing.T) {
 		t.Fatalf("an unknown market: %v", err)
 	}
 	if _, err := e.Symbols(ctx, "SSE:600795"); err != nil || count() != 7 {
-		t.Fatalf("an unknown market made Candle rest: %v, %d asked", err, count())
+		t.Fatalf("an unknown market made OpenBar rest: %v, %d asked", err, count())
 	}
 	// Its own server for each base: another Eastmoney is not resting.
 	cctx, cancel := context.WithCancel(ctx)
@@ -481,7 +481,7 @@ func TestEastmoneyRests(t *testing.T) {
 		t.Fatal("a cancelled request came through")
 	}
 	if _, err := e.Symbols(ctx, "SSE:600795"); err != nil {
-		t.Fatalf("a cancelled request made Candle rest: %v", err)
+		t.Fatalf("a cancelled request made OpenBar rest: %v", err)
 	}
 }
 

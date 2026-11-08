@@ -7,7 +7,7 @@ import (
 	"candle/pine"
 )
 
-// The Pine interpreter works out the indicators Candle has in Go, which
+// The Pine interpreter works out the indicators OpenBar has in Go, which
 // match TradingView's, to the same values: its history, its moving
 // averages seeded as TradingView's, its state kept by bar.
 func TestPineMatchesTheBuiltIns(t *testing.T) {
@@ -34,7 +34,7 @@ plot(h)`},
 		{"rsi", []float64{14}, `indicator("x")
 plot(ta.rsi(close, 14))`},
 		{"kdj", []float64{9, 3, 3}, `indicator("x")
-// TradingView's KDJ script, as Candle's Go has it
+// TradingView's KDJ script, as OpenBar's Go has it
 ilong = 9
 isig = 3
 bcwsma(s, l, m) =>
