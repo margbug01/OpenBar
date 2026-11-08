@@ -7,8 +7,8 @@ import (
 	"slices"
 )
 
-// settings are kept between runs in %APPDATA%\Candle\settings.json, and on
-// macOS in ~/Library/Application Support/Candle/settings.json.
+// settings are kept between runs in %APPDATA%\OpenBar\settings.json, and on
+// macOS in ~/Library/Application Support/OpenBar/settings.json.
 type settings struct {
 	// Layout is which of TradingView's layouts shows the charts, "" for one
 	// chart. Charts are the layout's charts, in TradingView's order, those a
@@ -76,7 +76,25 @@ func settingsPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "Candle", "settings.json")
+	return filepath.Join(appDir(dir), "settings.json")
+}
+
+// appDir is OpenBar's folder in base. OpenBar was Candle up to 0.6.1: the
+// first time, Candle's folder becomes OpenBar's, with the settings, the
+// drawings, the indicators and the window's place; if it cannot be moved it
+// stays in use, so nothing saved is lost.
+func appDir(base string) string {
+	dir, old := filepath.Join(base, "OpenBar"), filepath.Join(base, "Candle")
+	if _, err := os.Stat(dir); err == nil {
+		return dir
+	}
+	if _, err := os.Stat(old); err != nil {
+		return dir
+	}
+	if os.Rename(old, dir) != nil {
+		return old
+	}
+	return dir
 }
 
 // loadSettings reads the file; what is missing or damaged keeps its default.

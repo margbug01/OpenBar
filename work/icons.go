@@ -25,7 +25,7 @@ import (
 // The coins' icons go beside their names: in the watchlist, the search, the
 // top bar and the legend. Binance's website lists them (market.Binance.Icons),
 // and the list and the icons are kept in the cache folder, so each is
-// fetched once: ~/Library/Caches/Candle on macOS, %LOCALAPPDATA%\Candle on
+// fetched once: ~/Library/Caches/OpenBar on macOS, %LOCALAPPDATA%\OpenBar on
 // Windows. Until a coin's icon is in, or when it has none, or binance.com is
 // out of reach (it takes a proxy from mainland China), its first letter on a
 // disc stands in.
@@ -68,7 +68,7 @@ func iconDir() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "Candle")
+	return appDir(dir)
 }
 
 // loadIcons reads the list of icons from the cache folder or, a week old or

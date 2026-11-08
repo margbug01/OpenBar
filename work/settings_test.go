@@ -304,3 +304,36 @@ func TestMonoColors(t *testing.T) {
 		}
 	}
 }
+
+// Candle's folder becomes OpenBar's, once; one OpenBar has already is kept.
+func TestAppDirMovesCandles(t *testing.T) {
+	base := t.TempDir()
+	if got := appDir(base); got != filepath.Join(base, "OpenBar") {
+		t.Fatalf("without Candle's: %s", got)
+	}
+	base = t.TempDir()
+	os.MkdirAll(filepath.Join(base, "Candle", "indicators"), 0o755)
+	os.WriteFile(filepath.Join(base, "Candle", "settings.json"), []byte(`{"Active":0}`), 0o644)
+	os.WriteFile(filepath.Join(base, "Candle", "indicators", "my.pine"), []byte("x"), 0o644)
+	for range 2 {
+		dir := appDir(base)
+		if dir != filepath.Join(base, "OpenBar") {
+			t.Fatalf("moved to %s", dir)
+		}
+		for _, f := range []string{"settings.json", "indicators/my.pine"} {
+			if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+				t.Fatalf("%s did not come along: %v", f, err)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(base, "Candle")); err == nil {
+			t.Fatal("Candle's folder is still there")
+		}
+	}
+	os.MkdirAll(filepath.Join(base, "Candle"), 0o755)
+	if dir := appDir(base); dir != filepath.Join(base, "OpenBar") {
+		t.Fatalf("with both: %s", dir)
+	}
+	if _, err := os.Stat(filepath.Join(base, "Candle")); err != nil {
+		t.Fatal("with both, Candle's folder was touched")
+	}
+}
