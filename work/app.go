@@ -84,7 +84,7 @@ type application struct {
 	zhNames    map[string]string              // the US stocks' Chinese names, from those answers
 	zhAsking   string                         // the query being asked
 	usList     []market.Instrument            // the US stocks and ETFs, from Nasdaq's list
-	usByID     map[string]market.Instrument   // usList by ID
+	usByID     map[string]int                 // where in usList each ID is
 	usLoading  bool
 	usFailed   time.Time // when the list last did not come
 	usFetch    func(context.Context) ([]byte, error)
@@ -528,9 +528,9 @@ func (a *application) loadUS() {
 				}
 			}
 		}
-		byID := map[string]market.Instrument{}
-		for _, in := range list {
-			byID[in.ID] = in
+		byID := make(map[string]int, len(list))
+		for i, in := range list {
+			byID[in.ID] = i
 		}
 		a.post(func() {
 			a.usLoading = false
@@ -945,9 +945,9 @@ func (a *application) after(sym string) string {
 	if !market.IsListed(sym) {
 		return suffix(quote)
 	}
-	in, ok := a.usByID[sym]
-	if !ok {
-		in = popularByID[sym]
+	in := popularByID[sym]
+	if i, ok := a.usByID[sym]; ok {
+		in = a.usList[i]
 	}
 	if zh, _, _ := strings.Cut(in.Alias, " "); zh != "" { // 英伟达, as the futures read in Chinese
 		return " " + zh

@@ -1,7 +1,6 @@
 package market
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -32,14 +31,17 @@ func USList(ctx context.Context, c *http.Client) ([]byte, error) {
 // ("US:BRK-B": Yahoo writes the class after a dash), with the popular ones
 // marked (Popular), and adds the popular ones it lacks.
 func ParseUSList(data []byte) ([]Instrument, error) {
-	lines := bytes.Split(data, []byte("\n"))
-	if len(lines) < 2 || !bytes.HasPrefix(lines[0], []byte("Nasdaq Traded|Symbol|Security Name|")) {
+	// One string for the whole list, cut in place: what is kept is copied
+	// out of it below, so that the list (1 MB) does not stay behind it.
+	text := string(data)
+	head, rest, _ := strings.Cut(text, "\n")
+	if rest == "" || !strings.HasPrefix(head, "Nasdaq Traded|Symbol|Security Name|") {
 		return nil, errors.New("not Nasdaq's list of symbols")
 	}
 	seen := map[string]bool{}
-	var out []Instrument
-	for _, l := range lines[1:] {
-		f := strings.Split(strings.TrimRight(string(l), "\r"), "|")
+	out := make([]Instrument, 0, strings.Count(rest, "\n")+1+len(Popular))
+	for l := range strings.Lines(rest) {
+		f := strings.Split(strings.TrimRight(l, "\r\n"), "|")
 		if len(f) < 8 || f[7] == "Y" { // a test issue
 			continue
 		}
@@ -51,8 +53,10 @@ func ParseUSList(data []byte) ([]Instrument, error) {
 		if seen[code] {
 			continue
 		}
+		id := "US:" + code // a string of its own; Code and Ticker are inside it
+		code = id[3:]
 		seen[code] = true
-		out = append(out, Instrument{ID: "US:" + code, Code: code, Ticker: code, Tick: 0.01, Name: shortName(name)})
+		out = append(out, Instrument{ID: id, Code: code, Ticker: code, Tick: 0.01, Name: strings.Clone(shortName(name))})
 	}
 	if len(out) < 1000 {
 		return nil, fmt.Errorf("only %d symbols", len(out))
