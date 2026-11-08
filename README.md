@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="work/assets/icon.png" width="128" alt="Candle 图标">
+<img src="work/assets/icon.png" width="128" alt="OpenBar 图标">
 
-# Candle
+# OpenBar
 
 A native Windows and macOS market charting app with Binance markets, CME futures, US stocks, technical indicators and drawing tools.
 
 [官网 / Website](https://margbug01.github.io/Candle/) · [English](https://margbug01.github.io/Candle/en.html) · [下载 / Download](https://github.com/margbug01/Candle/releases/latest)
 
-一个照着 TradingView 做的 K 线图：Binance 现货和永续、CME 期货、美股
+一个照着 TradingView 做的 K 线图：Binance 现货和永续、CME 期货、美股。0.6.1 及以前叫 Candle
 
 Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、十字光标、指标、画线、盈亏比，手感和 TradingView 对得上；一个 exe 或一个 app，不用账号，不用 API Key。
 
@@ -24,7 +24,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 **指标按 TradingView 的公式算。** 28 个常用指标，按均线、通道、趋势、震荡、波动、成交量分组：MA、EMA、BOLL、一目均衡表、SAR、SuperTrend、VWAP 这类叠在 K 线上，MACD、RSI、KDJ、DMI、StochRSI、ATR、OBV、成交量这类各占一栏，栏与栏之间的线可以拖。同一种指标能加多个（MA5、MA20……），参数、源、偏移、线色、线宽都能改，价格轴上标出每条线的最新值。EMA 首值用 SMA，RSI 用 Wilder 平滑，BOLL 用总体标准差，RSI 的结果和 StockCharts 的公开算例逐个对过。实时推送只重算最后一根；离屏测试里 3000 根 K 线把 28 个指标全加上，从头算一遍约 9 毫秒，来一个推送约 5 微秒。
 
-**自己的指标：Pine Script。** 在 TradingView 上复制指标的代码，点「从剪贴板导入」就能用；也能在 Candle 的编辑器里写，或者让 Agent 把 .pine 文件写进指标文件夹，Candle 开着时会自己加到图上。支持 Pine v5、v6 的大部分写法，见下面「自己的指标」。
+**自己的指标：Pine Script。** 在 TradingView 上复制指标的代码，点「从剪贴板导入」就能用；也能在 OpenBar 的编辑器里写，或者让 Agent 把 .pine 文件写进指标文件夹，OpenBar 开着时会自己加到图上。支持 Pine v5、v6 的大部分写法，见下面「自己的指标」。
 
 **画线和盈亏比。** 趋势线、射线、水平线、水平射线、垂直线、平行通道、矩形、斐波那契回撤、价格区间、文字，外加多头和空头盈亏比：点一下放好入场、止盈、止损，填上账户金额和风险比例，就能算出该开多少仓、打到止盈止损各赚亏多少。有磁吸，能撤销重做、复制粘贴、锁定。常用的工具可以点 ☆ 放到图上一条横向的常用工具栏里，拖到哪儿就停在哪儿。画线按交易对保存，锚点记的是时间，换个周期也落在同一时刻。
 
@@ -53,20 +53,20 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 到 [Releases](https://github.com/margbug01/Candle/releases/latest) 下载：
 
-- **Windows 10 / 11**：`Candle-v<版本>-windows-x64.zip`，解压到自己的文件夹（比如桌面或 `D:\Candle`），打开里面的 `Candle.exe`。别放进 `Program Files` 这类没有写入权限的地方，不然没法自己更新。
-- **macOS 12 及以上（Apple 芯片）**：`Candle-v<版本>-macos-arm64.dmg`，把 Candle 拖进「应用程序」再打开。第一次打开被系统拦下的话，看下面的常见问题。
+- **Windows 10 / 11**：`OpenBar-v<版本>-windows-x64.zip`，解压到自己的文件夹（比如桌面或 `D:\OpenBar`），打开里面的 `OpenBar.exe`。别放进 `Program Files` 这类没有写入权限的地方，不然没法自己更新。
+- **macOS 12 及以上（Apple 芯片）**：`OpenBar-v<版本>-macos-arm64.dmg`，把 OpenBar 拖进「应用程序」再打开。第一次打开被系统拦下的话，看下面的常见问题。
 
 - 币的行情来自 Binance 的公开行情服务 `data-api.binance.vision` 和 `data-stream.binance.vision`，不需要 API Key。
-- 永续合约来自币安合约的公开接口 `fapi.binance.com` 和 `fstream.binance.com`（同样不要 Key）。它没有国内能直连的镜像，在中国大陆要开代理；没开时搜不到永续，现货不受影响。Candle 里永续写作 `BTCUSDT.P`。
-- 期货和美股的行情来自 Yahoo Finance 网页自己用的接口（`query1/query2.finance.yahoo.com`），不是公开 API，Yahoo 随时可能改或限流。在中国大陆要开代理才连得上。Candle 里期货写作 `CME:NQ`、美股写作 `US:AAPL`，币还是 `BTCUSDT`。
+- 永续合约来自币安合约的公开接口 `fapi.binance.com` 和 `fstream.binance.com`（同样不要 Key）。它没有国内能直连的镜像，在中国大陆要开代理；没开时搜不到永续，现货不受影响。OpenBar 里永续写作 `BTCUSDT.P`。
+- 期货和美股的行情来自 Yahoo Finance 网页自己用的接口（`query1/query2.finance.yahoo.com`），不是公开 API，Yahoo 随时可能改或限流。在中国大陆要开代理才连得上。OpenBar 里期货写作 `CME:NQ`、美股写作 `US:AAPL`，币还是 `BTCUSDT`。
 - 美股的代码清单来自 Nasdaq 每天发布的全部美股/ETF 列表（`www.nasdaqtrader.com`，约 1 MB，一周更新一次，存进下面说的缓存文件夹），搜美股不用再问 Yahoo；常用的 90 多只带了中文名。清单还没下好时，搜美股退回去问 Yahoo。
-- A 股（含指数）和港股的行情来自东方财富网站自己用的接口（K 线 `push2his.eastmoney.com`、报价 `push2.eastmoney.com`，不是公开 API），国内直连，A 股晚约 3 秒、港股几乎实时（Yahoo 上 A 股要晚 30 分钟、港股晚 15 分钟，所以没用 Yahoo）。分钟线东方财富只给最近一个半月左右（1 分钟线只有当天），日线、周线从上市那天起；价格是前复权的，和国内炒股软件一样。东方财富对问得太频繁的 IP 会封一阵（服务器直接断开），所以 Candle 只在交易时段每 5 秒问一次、休市每分钟一次，被拒了就先停 1 分钟再问，还不行就停得更久（最多 15 分钟），问通了恢复。小时线、4 小时线用 5 分钟线拼，和 TradingView 一样按开盘算起（港股 11:30 那根只有半小时）。Candle 里 A 股写作 `SSE:600795`（上交所）、`SZSE:000001`（深交所，平安银行；上证指数是 `SSE:000001`），港股 `HKEX:00700`，恒生指数 `HKEX:HSI`。
+- A 股（含指数）和港股的行情来自东方财富网站自己用的接口（K 线 `push2his.eastmoney.com`、报价 `push2.eastmoney.com`，不是公开 API），国内直连，A 股晚约 3 秒、港股几乎实时（Yahoo 上 A 股要晚 30 分钟、港股晚 15 分钟，所以没用 Yahoo）。分钟线东方财富只给最近一个半月左右（1 分钟线只有当天），日线、周线从上市那天起；价格是前复权的，和国内炒股软件一样。东方财富对问得太频繁的 IP 会封一阵（服务器直接断开），所以 OpenBar 只在交易时段每 5 秒问一次、休市每分钟一次，被拒了就先停 1 分钟再问，还不行就停得更久（最多 15 分钟），问通了恢复。小时线、4 小时线用 5 分钟线拼，和 TradingView 一样按开盘算起（港股 11:30 那根只有半小时）。OpenBar 里 A 股写作 `SSE:600795`（上交所）、`SZSE:000001`（深交所，平安银行；上证指数是 `SSE:000001`），港股 `HKEX:00700`，恒生指数 `HKEX:HSI`。
 - 韩股和 VIX 来自 Yahoo：韩股晚 20 分钟（东方财富的韩股分钟线没有成交量），VIX 晚 15 分钟（东方财富没有 VIX）。写作 `KRX:000660`、`CBOE:VIX`。韩股现在只接了 KOSPI 主板（Yahoo 的 .KS）。
 - 中文名：币、永续合约和常用的 90 多只美股的中文名写在程序里，不用联网；其他美股的中文名（闪迪、SK海力士这些）来自东方财富网站搜索框用的接口（`searchapi.eastmoney.com`，不是公开 API），只在搜索里打了汉字或数字代码时才问，国内直连，约 0.1 秒。A 股、港股的名字也从这里来。
 - 美股的图标来自 Financial Modeling Prep 公开的 logo（`financialmodelingprep.com/image-stock/<代码>.png`，不要 key，国内直连），和币的图标一样只下载一次；没有 logo 的显示首字母。
-- 网络连不上 Binance 时，Candle 会走系统代理：Windows 上是「设置 › 网络和 Internet › 代理」，macOS 上是「系统设置 › 网络 › 代理」，Clash、v2rayN、Shoes 打开的就是它；也认 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量。
-- 币的图标来自 Binance 官网（`www.binance.com` 的资产列表和 `bin.bnbstatic.com` 上的图片），下载一次就存进缓存文件夹（Windows 上 `%LOCALAPPDATA%\Candle`，macOS 上 `~/Library/Caches/Candle`），以后打开不用再下；列表一周更新一次，遇到列表里没有的新币会马上再问一次。在中国大陆连 binance.com 要开代理，连不上时图标位置显示币名的首字母，行情不受影响。
-- 自选、周期、指标、画线和图表设置都存在 `%APPDATA%\Candle\settings.json`（macOS 上是 `~/Library/Application Support/Candle/settings.json`），指标是所有交易对共用的，画线跟着交易对走。
+- 网络连不上 Binance 时，OpenBar 会走系统代理：Windows 上是「设置 › 网络和 Internet › 代理」，macOS 上是「系统设置 › 网络 › 代理」，Clash、v2rayN、Shoes 打开的就是它；也认 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量。
+- 币的图标来自 Binance 官网（`www.binance.com` 的资产列表和 `bin.bnbstatic.com` 上的图片），下载一次就存进缓存文件夹（Windows 上 `%LOCALAPPDATA%\OpenBar`，macOS 上 `~/Library/Caches/OpenBar`），以后打开不用再下；列表一周更新一次，遇到列表里没有的新币会马上再问一次。在中国大陆连 binance.com 要开代理，连不上时图标位置显示币名的首字母，行情不受影响。
+- 自选、周期、指标、画线和图表设置都存在 `%APPDATA%\OpenBar\settings.json`（macOS 上是 `~/Library/Application Support/OpenBar/settings.json`），指标是所有交易对共用的，画线跟着交易对走。
 - 能自己更新：「设置 › 关于」里点「检查更新」，有新版本就点「更新并重启」，下载、校验签名、替换，再自己重新打开，通常只下载变了的部分。打开时和之后每 12 小时也会自动问一次 GitHub，有新版本时顶栏右边会提示，只提示不自己装，可以关掉。自己编译的、还在 dmg 里打开的不能自己更新。
 
 ### 自己编译
@@ -75,21 +75,21 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 ```powershell
 git clone https://github.com/margbug01/Candle
-cd Candle/work
-go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/Candle.exe .
+cd OpenBar/work
+go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/OpenBar.exe .
 ```
 
-打开 `outputs/Candle.exe` 就能用。
+打开 `outputs/OpenBar.exe` 就能用。
 
 macOS 上用 MyGo 打包成 app（Apple 芯片）：
 
 ```sh
 git clone https://github.com/margbug01/Candle
-cd Candle/work
+cd OpenBar/work
 go run github.com/egoist/mygo/cmd/mygo@v0.6.4 build -skip-dmg
 ```
 
-打开 `outputs/darwin-arm64/Candle.app`，或者把它拖进「应用程序」。去掉 `-skip-dmg` 会再打一个 dmg。
+打开 `outputs/darwin-arm64/OpenBar.app`，或者把它拖进「应用程序」。去掉 `-skip-dmg` 会再打一个 dmg。
 
 ## 操作
 
@@ -153,11 +153,11 @@ VWAP、`timeframe.change("D")` 这类按「交易日」算的：加密货币按 
 
 ## 自己的指标
 
-指标文件夹在设置旁边：`%APPDATA%\Candle\indicators`（macOS 上是 `~/Library/Application Support/Candle/indicators`），里面一个 `.pine` 文件就是一个指标，文件名就是它的身份。顶栏「指标」里的「新建」「从剪贴板导入」「打开文件夹」都在搜索框下面。
+指标文件夹在设置旁边：`%APPDATA%\OpenBar\indicators`（macOS 上是 `~/Library/Application Support/OpenBar/indicators`），里面一个 `.pine` 文件就是一个指标，文件名就是它的身份。顶栏「指标」里的「新建」「从剪贴板导入」「打开文件夹」都在搜索框下面。
 
-- Candle 开着时每 1.5 秒看一次这个文件夹：新放进来的文件自动加到图上，改了马上重算；写错了不会出事，图上会说错在第几行。
+- OpenBar 开着时每 1.5 秒看一次这个文件夹：新放进来的文件自动加到图上，改了马上重算；写错了不会出事，图上会说错在第几行。
 - 编辑器有 Pine 的高亮、补全，边打边检查，错的地方画红线；删除会放进废纸篓。
-- 文件夹里的 `README.md` 是写给 Agent 看的（怎么写、支持什么、写完怎么检查），`_status.json` 是 Candle 写的每个文件能不能跑、错在哪。让 Agent「给 Candle 写个 xx 指标」就行。
+- 文件夹里的 `README.md` 是写给 Agent 看的（怎么写、支持什么、写完怎么检查），`_status.json` 是 OpenBar 写的每个文件能不能跑、错在哪。让 Agent「给 OpenBar 写个 xx 指标」就行。
 - 支持：indicator / study、input.*（会变成指标设置里的数字、开关、下拉、颜色）、var、:=、if / for / while / switch、自定义函数、x[n]、ta.*、math.*、color.*、plot（线、阶梯、柱、圆点、十字、面积，每根 K 线可以不同颜色）、hline、fill、bgcolor、plotshape、plotchar、plotarrow。
 - 不支持：request.security（别的品种、别的周期）、策略、数组和 map、自定义类型；label、line、box、table 会跳过不画。
 
@@ -175,23 +175,23 @@ VWAP、`timeframe.change("D")` 这类按「交易日」算的：加密货币按 
 <details>
 <summary><b>指标数值和别的软件对不上？</b></summary>
 
-EMA、RSI、MACD 都是递推的，开头几十根会受起点影响，加载的历史越多越接近；Candle 一次加载 1000 根，往左拖还会继续补。KDJ 和国内软件（同花顺、通达信）的差别在起点：它们的 K、D 从 50 起，TradingView 的脚本和 Candle 从 0 起，开头几根不同，之后会收敛到一起。
+EMA、RSI、MACD 都是递推的，开头几十根会受起点影响，加载的历史越多越接近；OpenBar 一次加载 1000 根，往左拖还会继续补。KDJ 和国内软件（同花顺、通达信）的差别在起点：它们的 K、D 从 50 起，TradingView 的脚本和 OpenBar 从 0 起，开头几根不同，之后会收敛到一起。
 
 </details>
 
 <details>
 <summary><b>K 线一直加载不出来？</b></summary>
 
-先确认浏览器能打开 <https://data-api.binance.vision/api/v3/ping>。打不开的话，打开代理软件的「系统代理」再重试；Candle 会重新读系统代理（Windows 上每次连接都读，macOS 上最多隔 3 秒），不用重启。目前不支持 PAC 脚本；SOCKS 代理只有 macOS 上认。
+先确认浏览器能打开 <https://data-api.binance.vision/api/v3/ping>。打不开的话，打开代理软件的「系统代理」再重试；OpenBar 会重新读系统代理（Windows 上每次连接都读，macOS 上最多隔 3 秒），不用重启。目前不支持 PAC 脚本；SOCKS 代理只有 macOS 上认。
 
 </details>
 
 <details>
 <summary><b>期货为什么晚 10 分钟？</b></summary>
 
-CME 的实时行情要向交易所付费授权，免费渠道（Yahoo、TradingView 免费版、OpenMarket 免费版）都是晚 10 分钟。Candle 用的是 Yahoo 的数据：价格是交易所的真实成交，落在合约的最小跳动上（NQ 0.25），只是晚到，顶栏右边会写「晚 10 分」。国内门户网站的「实时」外盘期货价是加工过的近似值，和真实成交差几个点，画线、算止损不能用，所以没用。要实时只能接券商（IBKR、Tradovate、富途等）并开 CME 行情，以后会做。美股是 Yahoo 盘中的价格。
+CME 的实时行情要向交易所付费授权，免费渠道（Yahoo、TradingView 免费版、OpenMarket 免费版）都是晚 10 分钟。OpenBar 用的是 Yahoo 的数据：价格是交易所的真实成交，落在合约的最小跳动上（NQ 0.25），只是晚到，顶栏右边会写「晚 10 分」。国内门户网站的「实时」外盘期货价是加工过的近似值，和真实成交差几个点，画线、算止损不能用，所以没用。要实时只能接券商（IBKR、Tradovate、富途等）并开 CME 行情，以后会做。美股是 Yahoo 盘中的价格。
 
-Yahoo 自己的数据里，CME 每个交易时段的第一根 5 分钟线（纽约时间 18:00）没有成交量，图上那根量柱是空的，不是 Candle 的问题。
+Yahoo 自己的数据里，CME 每个交易时段的第一根 5 分钟线（纽约时间 18:00）没有成交量，图上那根量柱是空的，不是 OpenBar 的问题。
 
 </details>
 
@@ -221,7 +221,7 @@ Yahoo 给多少就有多少：1 分钟线最近 30 天，5 分钟、15 分钟 60
 <details>
 <summary><b>币的图标只显示一个字母？</b></summary>
 
-图标要从 binance.com 下载，在中国大陆要开代理（Candle 走系统代理，见上一条）。连不上时先显示首字母，代理开了之后十分钟内会自己再试，或者重新打开 Candle。下载过的图标存在缓存文件夹里，以后断网也能显示。
+图标要从 binance.com 下载，在中国大陆要开代理（OpenBar 走系统代理，见上一条）。连不上时先显示首字母，代理开了之后十分钟内会自己再试，或者重新打开 OpenBar。下载过的图标存在缓存文件夹里，以后断网也能显示。
 
 美股的图标来自 Financial Modeling Prep，国内直连就能下；冷门的股票、ETF 没有 logo，就一直是首字母。期货没有图标来源，都是首字母。
 
@@ -230,7 +230,7 @@ Yahoo 给多少就有多少：1 分钟线最近 30 天，5 分钟、15 分钟 60
 <details>
 <summary><b>macOS 说「无法打开」或「无法验证开发者」？</b></summary>
 
-app 没有 Apple 开发者签名，也没有经过公证，第一次打开会被系统拦下。点「完成」后到「系统设置 › 隐私与安全性」，在最下面点「仍要打开」；也可以在终端运行 `xattr -dr com.apple.quarantine /Applications/Candle.app` 再打开。
+app 没有 Apple 开发者签名，也没有经过公证，第一次打开会被系统拦下。点「完成」后到「系统设置 › 隐私与安全性」，在最下面点「仍要打开」；也可以在终端运行 `xattr -dr com.apple.quarantine /Applications/OpenBar.app` 再打开。
 
 </details>
 
@@ -244,7 +244,7 @@ exe 没有代码签名证书，SmartScreen 不认识它。点「更多信息」�
 <details>
 <summary><b>更新装不上？</b></summary>
 
-Candle 要能改写自己所在的位置才能更新：macOS 上把 app 拖进「应用程序」再打开，不要直接从 dmg 里开；Windows 上解压到自己的文件夹，不要放 `Program Files`。连 GitHub 也走系统代理，「检查更新失败」时先看看代理开着没有。实在不行，到 Releases 下载新版本覆盖就行，设置和画线都不在程序里，不会丢。
+OpenBar 要能改写自己所在的位置才能更新：macOS 上把 app 拖进「应用程序」再打开，不要直接从 dmg 里开；Windows 上解压到自己的文件夹，不要放 `Program Files`。连 GitHub 也走系统代理，「检查更新失败」时先看看代理开着没有。实在不行，到 Releases 下载新版本覆盖就行，设置和画线都不在程序里，不会丢。
 
 </details>
 
@@ -260,7 +260,7 @@ Candle 要能改写自己所在的位置才能更新：macOS 上把 app 拖进�
 ```powershell
 cd work
 go test ./...
-go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/Candle.exe .
+go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/OpenBar.exe .
 ```
 
 macOS 上：
@@ -310,7 +310,7 @@ go run tools/macicon.go docs/icon-macos.svg work/assets/icon-macos.png
 
 5. 在 GitHub 上建 `v<版本>` 的 Release，先存成草稿，把附件都传上去，确认后再发布并设为 Latest。应用读的是最新 Release 里的清单，草稿对它不可见，不会出现清单已经能读到、压缩包还没传完的情况。
    - `outputs/darwin-arm64/`：dmg（改名为 `OpenBar-v<版本>-macos-arm64.dmg`）、`openbar-<版本>-darwin-arm64.tar.gz`、`*.delta`、`update-darwin-arm64.json`
-   - `outputs/windows-amd64/`：把 `OpenBar.exe`、`LICENSE` 和 `licenses/` 放进 `OpenBar/` 文件夹打成 `OpenBar-v<版本>-windows-x64.zip`（不放转接用的 `Candle.exe`，新用户用不着），另附单独的 `OpenBar.exe`；再加上 `openbar-<版本>-windows-amd64.tar.gz`、`*.delta`、`update-windows-amd64.json`
+   - `outputs/windows-amd64/`：把 `OpenBar.exe`、`LICENSE` 和 `licenses/` 放进 `OpenBar/` 文件夹打成 `OpenBar-v<版本>-windows-x64.zip`（不放转接用的 `OpenBar.exe`，新用户用不着），另附单独的 `OpenBar.exe`；再加上 `openbar-<版本>-windows-amd64.tar.gz`、`*.delta`、`update-windows-amd64.json`
 
 `*.delta` 是从前几个版本到这一版的增量包，`mygo build` 会读已发布的版本自动做出来，应用更新时优先下载它。
 
@@ -318,17 +318,17 @@ go run tools/macicon.go docs/icon-macos.svg work/assets/icon-macos.png
 
 ## 致谢
 
-- [MyGo](https://github.com/egoist/mygo)：Go 的原生界面库，Candle 的界面全靠它
+- [MyGo](https://github.com/egoist/mygo)：Go 的原生界面库，OpenBar 的界面全靠它
 - [coder/websocket](https://github.com/coder/websocket)：实时行情的 WebSocket
 - [Binance](https://developers.binance.com/docs/binance-spot-api-docs)：公开行情接口
 - [TradingView](https://www.tradingview.com/)：界面、交互和指标口径的参照
-- [MiSans](https://hyperos.mi.com/font/zh/)：小米的免费商用字体（不随 Candle 分发）
+- [MiSans](https://hyperos.mi.com/font/zh/)：小米的免费商用字体（不随 OpenBar 分发）
 
-Candle 是个人项目，和 TradingView、Binance 没有关系，也不构成任何投资建议。
+OpenBar 是个人项目，和 TradingView、Binance 没有关系，也不构成任何投资建议。
 
 ## 许可证
 
-Candle 以 [MIT](LICENSE) 发布。编进程序的 MyGo、coder/websocket、Go 标准库等第三方代码按各自的许可证分发，原文都在 [`licenses/`](licenses/)：Windows 版在 `Candle.exe` 旁边，macOS 版在 `Candle.app/Contents/Resources/licenses/`。
+OpenBar 以 [MIT](LICENSE) 发布。编进程序的 MyGo、coder/websocket、Go 标准库等第三方代码按各自的许可证分发，原文都在 [`licenses/`](licenses/)：Windows 版在 `OpenBar.exe` 旁边，macOS 版在 `OpenBar.app/Contents/Resources/licenses/`。
 
 ## Website / 官网维护
 
@@ -338,4 +338,4 @@ The GitHub Pages site is published from `docs/` on `main`. Keep both language pa
 
 ## More MyGo apps / 其他作品
 
-[Mami](https://github.com/margbug01/mami) · [MySpotify](https://github.com/margbug01/MySpotify) · [MyShoes](https://github.com/margbug01/ShoesGUI) · [Candle](https://github.com/margbug01/Candle)
+[Mami](https://github.com/margbug01/mami) · [MySpotify](https://github.com/margbug01/MySpotify) · [MyShoes](https://github.com/margbug01/ShoesGUI) · [OpenBar](https://github.com/margbug01/Candle)
