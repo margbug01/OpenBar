@@ -18,6 +18,7 @@ import (
 	"unicode"
 
 	"github.com/egoist/mygo/ui"
+	xdraw "golang.org/x/image/draw"
 
 	"candle/market"
 )
@@ -34,6 +35,11 @@ const (
 	iconListAge  = 7 * 24 * time.Hour // the list is asked for again after a week
 	iconRetry    = 10 * time.Minute   // what did not come is asked for again after this
 	iconParallel = 4                  // downloads at once: a search shows 50 coins
+	// iconPixels is the most an icon keeps across: they show at 22 DIPs
+	// at most, 44 pixels on a Retina screen. A bitmap keeps its pixels and
+	// halvings for good, and some logos come at 1534×1225 (SanDisk's):
+	// 10 MB kept to draw 44 pixels.
+	iconPixels = 64
 )
 
 // icons is where the icons are at. Like the rest of application it belongs
@@ -139,7 +145,7 @@ func (a *application) icon(coin string) *ui.Bitmap {
 		data, err := os.ReadFile(file)
 		var b *ui.Bitmap
 		if err == nil {
-			b, err = ui.DecodeBitmap(data)
+			b, err = decodeIcon(data)
 		}
 		if err != nil { // not kept yet, or damaged
 			slots <- struct{}{}
@@ -148,7 +154,7 @@ func (a *application) icon(coin string) *ui.Bitmap {
 			cancel()
 			<-slots
 			if err == nil {
-				if b, err = ui.DecodeBitmap(data); err == nil {
+				if b, err = decodeIcon(data); err == nil {
 					writeFile(file, data)
 				}
 			}
@@ -169,6 +175,27 @@ func (a *application) icon(coin string) *ui.Bitmap {
 		})
 	})
 	return nil
+}
+
+// decodeIcon decodes an icon, made iconPixels across at most.
+func decodeIcon(data []byte) (*ui.Bitmap, error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	sz := img.Bounds().Size()
+	if sz.X <= iconPixels && sz.Y <= iconPixels {
+		return ui.NewBitmap(img), nil
+	}
+	w, h := iconPixels, iconPixels
+	if sz.X > sz.Y {
+		h = max(1, sz.Y*iconPixels/sz.X)
+	} else {
+		w = max(1, sz.X*iconPixels/sz.Y)
+	}
+	small := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.CatmullRom.Scale(small, small.Bounds(), img, img.Bounds(), xdraw.Src, nil)
+	return ui.NewBitmap(small), nil
 }
 
 // symIcon is sym's icon, size across: a coin's picture, a stock's logo, or

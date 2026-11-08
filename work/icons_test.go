@@ -283,3 +283,33 @@ func TestWhiteLogo(t *testing.T) {
 		t.Fatal("QQQ's white logo goes on white")
 	}
 }
+
+// TestIconsKeptSmall checks a big logo is kept iconPixels across, its shape
+// and color kept, and a small one as it came.
+func TestIconsKeptSmall(t *testing.T) {
+	for _, c := range []struct{ w, h, wantW, wantH int }{
+		{1534, 1225, 64, 51}, // SanDisk's
+		{250, 250, 64, 64},
+		{100, 400, 16, 64},
+		{32, 32, 32, 32},
+	} {
+		img := image.NewRGBA(image.Rect(0, 0, c.w, c.h))
+		for i := 0; i < len(img.Pix); i += 4 {
+			img.Pix[i], img.Pix[i+1], img.Pix[i+2], img.Pix[i+3] = magenta.R, magenta.G, magenta.B, magenta.A
+		}
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			t.Fatal(err)
+		}
+		b, err := decodeIcon(buf.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w, h := b.Size(); w != c.wantW || h != c.wantH {
+			t.Errorf("%dx%d kept as %dx%d, want %dx%d", c.w, c.h, w, h, c.wantW, c.wantH)
+		}
+	}
+	if _, err := decodeIcon([]byte("not a picture")); err == nil {
+		t.Error("no error for what is not a picture")
+	}
+}
