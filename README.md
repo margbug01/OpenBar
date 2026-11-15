@@ -6,7 +6,7 @@
 
 A native Windows and macOS market charting app with Binance markets, CME futures, US stocks, technical indicators and drawing tools.
 
-[官网 / Website](https://margbug01.github.io/Candle/) · [English](https://margbug01.github.io/Candle/en.html) · [下载 / Download](https://github.com/margbug01/Candle/releases/latest)
+[官网 / Website](https://margbug01.github.io/OpenBar/) · [English](https://margbug01.github.io/OpenBar/en.html) · [下载 / Download](https://github.com/margbug01/OpenBar/releases/latest)
 
 一个照着 TradingView 做的 K 线图：Binance 现货和永续、CME 期货、美股。0.6.1 及以前叫 Candle
 
@@ -51,7 +51,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 ## 开始使用
 
-到 [Releases](https://github.com/margbug01/Candle/releases/latest) 下载：
+到 [Releases](https://github.com/margbug01/OpenBar/releases/latest) 下载：
 
 - **Windows 10 / 11**：`OpenBar-v<版本>-windows-x64.zip`，解压到自己的文件夹（比如桌面或 `D:\OpenBar`），打开里面的 `OpenBar.exe`。别放进 `Program Files` 这类没有写入权限的地方，不然没法自己更新。
 - **macOS 12 及以上（Apple 芯片）**：`OpenBar-v<版本>-macos-arm64.dmg`，把 OpenBar 拖进「应用程序」再打开。第一次打开被系统拦下的话，看下面的常见问题。
@@ -74,7 +74,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 要装 [Go](https://go.dev/dl/)，版本低于 1.27.3 会自动下载对应的工具链。Windows 上：
 
 ```powershell
-git clone https://github.com/margbug01/Candle
+git clone https://github.com/margbug01/OpenBar
 cd OpenBar/work
 go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/OpenBar.exe .
 ```
@@ -84,7 +84,7 @@ go build -trimpath -ldflags="-H windowsgui -s -w" -o ../outputs/OpenBar.exe .
 macOS 上用 MyGo 打包成 app（Apple 芯片）：
 
 ```sh
-git clone https://github.com/margbug01/Candle
+git clone https://github.com/margbug01/OpenBar
 cd OpenBar/work
 go run github.com/egoist/mygo/cmd/mygo@v0.6.4 build -skip-dmg
 ```
@@ -338,4 +338,4 @@ The GitHub Pages site is published from `docs/` on `main`. Keep both language pa
 
 ## More MyGo apps / 其他作品
 
-[Mami](https://github.com/margbug01/mami) · [MySpotify](https://github.com/margbug01/MySpotify) · [MyShoes](https://github.com/margbug01/ShoesGUI) · [OpenBar](https://github.com/margbug01/Candle)
+[Mami](https://github.com/margbug01/mami) · [MySpotify](https://github.com/margbug01/MySpotify) · [MyShoes](https://github.com/margbug01/ShoesGUI) · [OpenBar](https://github.com/margbug01/OpenBar)
