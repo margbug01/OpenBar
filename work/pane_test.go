@@ -93,6 +93,67 @@ func TestPaneLinesOverTheirBars(t *testing.T) {
 	}
 }
 
+// Zoomed out on a high-DPI screen under many lines, a pane's lines still
+// show: drawn whole, each line's mask took a shelf of MyGo's atlas, and the
+// lines drawn last, StochRSI's, were left out (issue #3).
+func TestLinesShowInACrowdedChart(t *testing.T) {
+	var keys []string
+	for range 10 {
+		keys = append(keys, "ma")
+	}
+	a := withIndicators(append(keys, "stochrsi")...)
+	for i := range 10 {
+		a.indicators[i].Params[0] = float64(3 + 7*i)
+	}
+	a.bars = fakeBars(3000, 3_600_000)
+	tt := newTester(a, false)
+	const sc = 2
+	tt.SetScale(sc)
+	a.view.spacing, a.view.offset = 2, 0
+	tt.Frame()
+	tt.Frame()
+	img := tt.Image()
+	_, panes := a.layout(a.boxH - timeH)
+	pn := panes[len(panes)-1]
+	top, bottom := int((chartTop(a)+pn.y)*sc)+2, int((chartTop(a)+pn.y+pn.h)*sc)-2
+	for j, c := range []string{"#2962ff", "#ff6d00"} { // K and D
+		var missing int
+		for x := int((chartLeft(a) + 320) * sc); x < int((chartLeft(a)+a.plotW-10)*sc); x++ {
+			found := false
+			for y := top; y < bottom && !found; y++ {
+				found = near8(img.RGBAAt(x, y), ui.Hex(c), 60)
+			}
+			if !found {
+				missing++
+			}
+		}
+		if missing > 120 { // K hides behind D here and there
+			t.Errorf("plot %d of StochRSI is missing from %d columns", j, missing)
+		}
+	}
+}
+
+// A fill drawn in pieces shows no seam where they meet: in an opaque one,
+// every pixel inside is its color.
+func TestFillPiecesShowNoSeam(t *testing.T) {
+	c := ui.Hex("#2962ff")
+	tt := ui.NewTester(func(cx *ui.Context) {
+		ui.Box(cx).Size(600, 200).Draw(func(p *ui.Painter, r ui.Rect) {
+			x := func(i int) float32 { return r.X + 10.3 + float32(i)*2.7 }
+			fillPieces(p, x, func(i int) float32 { return r.Y + 20 + float32(i%7) }, func(int) float32 { return r.Y + 180 }, 0, 200, c)
+		})
+	}, 600, 200)
+	tt.SetScale(1.5)
+	tt.Frame()
+	img := tt.Image()
+	y := int(100 * 1.5)
+	for x := int(20 * 1.5); x < int(500*1.5); x++ {
+		if got := img.RGBAAt(x, y); !near8(got, c, 3) {
+			t.Fatalf("a seam at x=%d: %v", x, got)
+		}
+	}
+}
+
 // A pane's price axis scales its prices, and only them, as the candles'
 // axis does theirs: the wheel and a drag on it, then the pane dragging them
 // up and down too, until a double click on it, or on the pane.

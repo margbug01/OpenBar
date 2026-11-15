@@ -135,6 +135,122 @@ func dash(p *ui.Painter, x0, y0, x1, y1, w float32, c ui.Color, pattern string) 
 	}
 }
 
+// pieceMax is the most DIPs a piece of a long line or fill spans either way.
+// MyGo rasterizes a path into a mask as big as its bounds, kept in an atlas
+// at most 4096 pixels a side on shelves of like heights, and leaves out what
+// no longer fits: a few lines across a big chart crowded the frame's other
+// lines out, a pane's whole (issue #3). Smaller pieces pack tighter, and
+// draw quicker too.
+const pieceMax = 32
+
+// liner strokes a line w wide in c in pieces at most pieceMax DIPs either
+// way, each going on from where the one before ended; flush strokes the
+// last. Pieces out of sight are not drawn. StrokePolyline draws an opaque
+// line on a GPU without a mask at all.
+type liner struct {
+	p              *ui.Painter
+	w              float32
+	c              ui.Color
+	pts            [][2]float32 // the piece
+	at             bool         // there is a point to go on from: x, y
+	x, y           float32
+	x0, y0, x1, y1 float32 // the piece's bounds
+}
+
+func (l *liner) moveTo(x, y float32) {
+	l.flush()
+	l.x, l.y, l.at = x, y, true
+}
+
+// lift breaks the line: the next point starts it again.
+func (l *liner) lift() {
+	l.flush()
+	l.at = false
+}
+
+func (l *liner) lineTo(x, y float32) {
+	if !l.at {
+		l.moveTo(x, y)
+		return
+	}
+	// A segment longer than a piece goes in parts; one off at infinity, or
+	// past 256 pieces, in one, as before.
+	n := math.Ceil(float64(max(abs32(x-l.x), abs32(y-l.y))) / pieceMax)
+	if !(n >= 1 && n <= 256) {
+		n = 1
+	}
+	x0, y0 := l.x, l.y
+	for j := 1.0; j <= n; j++ {
+		f := float32(j / n)
+		l.to(x0+(x-x0)*f, y0+(y-y0)*f)
+	}
+}
+
+func (l *liner) to(x, y float32) {
+	if len(l.pts) > 0 && (max(l.x1, x)-min(l.x0, x) > pieceMax || max(l.y1, y)-min(l.y0, y) > pieceMax) {
+		l.flush()
+	}
+	if len(l.pts) == 0 {
+		l.pts = append(l.pts, [2]float32{l.x, l.y})
+		l.x0, l.y0, l.x1, l.y1 = l.x, l.y, l.x, l.y
+	}
+	l.pts = append(l.pts, [2]float32{x, y})
+	l.x0, l.y0, l.x1, l.y1 = min(l.x0, x), min(l.y0, y), max(l.x1, x), max(l.y1, y)
+	l.x, l.y = x, y
+}
+
+// flush strokes the piece drawn so far, if it shows.
+func (l *liner) flush() {
+	if len(l.pts) == 0 {
+		return
+	}
+	v, m := l.p.Visible(), l.w/2+1
+	if l.x1+m >= v.X && l.x0-m <= v.X+v.W && l.y1+m >= v.Y && l.y0-m <= v.Y+v.H {
+		l.p.StrokePolyline(l.pts, l.w, l.c)
+	}
+	l.pts = l.pts[:0]
+}
+
+// fillPieces fills between top and bottom over bars i0 to i1, at x from
+// left to right, in pieces about pieceMax DIPs wide (see liner). They are
+// cut between two bars on the edge of a device pixel, which neither covers
+// in part, so that no seam shows.
+func fillPieces(p *ui.Painter, x, top, bottom func(int) float32, i0, i1 int, c ui.Color) {
+	type col struct{ x, t, b float32 }
+	var cols []col
+	fill := func() {
+		if len(cols) < 2 {
+			return
+		}
+		var path ui.Path
+		path.MoveTo(cols[0].x, cols[0].t)
+		for _, k := range cols[1:] {
+			path.LineTo(k.x, k.t)
+		}
+		for j := len(cols) - 1; j >= 0; j-- {
+			path.LineTo(cols[j].x, cols[j].b)
+		}
+		p.FillPath(path.Close(), c)
+	}
+	sc := p.Scale()
+	for i := i0; i <= i1; i++ {
+		xi := x(i)
+		if i > i0 && i < i1 && xi-cols[0].x > pieceMax {
+			xa := x(i - 1)
+			xc := float32(math.Round(float64((xa+xi)/2*sc))) / sc
+			if f := (xc - xa) / (xi - xa); f > 0 && f < 1 {
+				ta, ba := top(i-1), bottom(i-1)
+				cut := col{xc, ta + (top(i)-ta)*f, ba + (bottom(i)-ba)*f}
+				cols = append(cols, cut)
+				fill()
+				cols = append(cols[:0], cut)
+			}
+		}
+		cols = append(cols, col{xi, top(i), bottom(i)})
+	}
+	fill()
+}
+
 // outline draws r's edges one device pixel (px) wide, inside it.
 func outline(p *ui.Painter, r ui.Rect, px float32, c ui.Color) {
 	if r.W <= 2*px || r.H <= 2*px {
@@ -502,22 +618,22 @@ func (a *application) drawBars(p *ui.Painter, plot ui.Rect, k palette, v view, f
 		col := st.Line.or(k.accent)
 		// One bar past each edge, so the line runs off the plot.
 		i0, i1 := max(from-1, 0), min(to+1, n-1)
-		var line, area ui.Path
-		for i := i0; i <= i1; i++ {
-			x, yy := plot.X+v.x(i, plot.W, n), y(a.bars[i].C)
-			if i == i0 {
-				line.MoveTo(x, yy)
-				area.MoveTo(x, yy)
-			} else {
-				line.LineTo(x, yy)
-				area.LineTo(x, yy)
+		x := func(i int) float32 { return plot.X + v.x(i, plot.W, n) }
+		if st.Type == "area" && i0 <= i1 {
+			// One path, its gradient spanning it: pieces would each have their own.
+			var area ui.Path
+			area.MoveTo(x(i0), y(a.bars[i0].C))
+			for i := i0 + 1; i <= i1; i++ {
+				area.LineTo(x(i), y(a.bars[i].C))
 			}
-		}
-		if st.Type == "area" {
-			area.LineTo(plot.X+v.x(i1, plot.W, n), plot.Y+plot.H).LineTo(plot.X+v.x(i0, plot.W, n), plot.Y+plot.H).Close()
+			area.LineTo(x(i1), plot.Y+plot.H).LineTo(x(i0), plot.Y+plot.H).Close()
 			p.FillPathGradient(&area, ui.LinearGradient{From: col.Alpha(0.28), To: col.Alpha(0.02), Angle: 180})
 		}
-		p.StrokePath(&line, 2, col)
+		line := liner{p: p, w: 2, c: col}
+		for i := i0; i <= i1; i++ {
+			line.lineTo(x(i), y(a.bars[i].C))
+		}
+		line.flush()
 	case "bars":
 		tick := max(px, float32(math.Floor(float64(v.spacing*0.36/px)))*px)
 		for i := from; i <= to; i++ {

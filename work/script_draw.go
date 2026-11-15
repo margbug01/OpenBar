@@ -215,15 +215,11 @@ func strokePlot(cv canvas, ind *indicator, k *indKind, s *series, j, style, i0, 
 	vals, off := s.out[j], plotShift(s, j)
 	breaks := style == pine.StyleLineBr || style == pine.StyleStepBr || style == pine.StyleAreaBr
 	step := style == pine.StyleStep || style == pine.StyleStepBr
-	var path ui.Path
-	var cur ui.Color
-	open := false
+	l := liner{p: cv.p, w: w}
+	open := false // a run in l.c has begun
 	flush := func() {
-		if open {
-			cv.p.StrokePath(&path, w, cur)
-			path.Reset()
-			open = false
-		}
+		l.lift()
+		open = false
 	}
 	prev, px, py := -1, float32(0), float32(0)
 	// Start from the last value before the span, so the line comes in.
@@ -245,15 +241,15 @@ func strokePlot(cv canvas, ind *indicator, k *indKind, s *series, j, style, i0, 
 		x, y := cv.x(i+off), cv.y(v)
 		c, ok := plotColor(ind, k, s, j, i)
 		if prev >= 0 && ok && (!breaks || prev == i-1) {
-			if !open || c != cur {
+			if !open || c != l.c {
 				flush()
-				path.MoveTo(px, py)
-				cur, open = c, true
+				l.c, open = c, true
+				l.moveTo(px, py)
 			}
 			if step {
-				path.LineTo(x, py)
+				l.lineTo(x, py)
 			}
-			path.LineTo(x, y)
+			l.lineTo(x, y)
 		} else {
 			flush()
 		}
@@ -316,20 +312,13 @@ func (a *application) drawFill(cv canvas, s *series, sc *pine.Script, j int, f p
 	// Runs of bars with both values and one color, each a shape.
 	start := -1
 	var cur ui.Color
+	x := func(i int) float32 { return cv.x(i + off) }
+	yt := func(i int) float32 { return cv.y(top[i]) }
+	yb := func(i int) float32 { return cv.y(bottom[i]) }
 	flush := func(end int) {
-		if start < 0 || end <= start {
-			start = -1
-			return
+		if start >= 0 && end > start {
+			fillPieces(cv.p, x, yt, yb, start, end, cur)
 		}
-		var path ui.Path
-		path.MoveTo(cv.x(start+off), cv.y(top[start]))
-		for i := start + 1; i <= end; i++ {
-			path.LineTo(cv.x(i+off), cv.y(top[i]))
-		}
-		for i := end; i >= start; i-- {
-			path.LineTo(cv.x(i+off), cv.y(bottom[i]))
-		}
-		cv.p.FillPath(path.Close(), cur)
 		start = -1
 	}
 	for i := i0; i <= i1; i++ {

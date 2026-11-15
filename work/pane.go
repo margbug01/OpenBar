@@ -295,24 +295,15 @@ func (a *application) overlayRange(from, to int, lo, hi float64, log bool) (floa
 // off bars to the right of its own, one bar past each end so that it runs
 // off the plot; a NaN breaks it.
 func strokeSeries(p *ui.Painter, x func(int) float32, y func(float64) float32, vals []float64, from, to, off int, w float32, c ui.Color) {
-	var path ui.Path
-	drawn, open := false, false
+	l := liner{p: p, w: w, c: c}
 	for i := max(from-1-off, 0); i <= min(to+1-off, len(vals)-1); i++ {
-		v := vals[i]
-		switch {
-		case math.IsNaN(v):
-			open = false
-		case open:
-			path.LineTo(x(i+off), y(v))
-			drawn = true
-		default:
-			path.MoveTo(x(i+off), y(v))
-			open = true
+		if v := vals[i]; math.IsNaN(v) {
+			l.lift()
+		} else {
+			l.lineTo(x(i+off), y(v))
 		}
 	}
-	if drawn {
-		p.StrokePath(&path, w, c)
-	}
+	l.flush()
 }
 
 // fillBetween shades the space between two series where they land on bars
@@ -322,18 +313,7 @@ func fillBetween(p *ui.Painter, x func(int) float32, y func(float64) float32, to
 	for i0 <= i1 && (math.IsNaN(top[i0]) || math.IsNaN(bottom[i0])) {
 		i0++
 	}
-	if i0 >= i1 {
-		return
-	}
-	var path ui.Path
-	path.MoveTo(x(i0+off), y(top[i0]))
-	for i := i0 + 1; i <= i1; i++ {
-		path.LineTo(x(i+off), y(top[i]))
-	}
-	for i := i1; i >= i0; i-- {
-		path.LineTo(x(i+off), y(bottom[i]))
-	}
-	p.FillPath(path.Close(), c)
+	fillPieces(p, func(i int) float32 { return x(i + off) }, func(i int) float32 { return y(top[i]) }, func(i int) float32 { return y(bottom[i]) }, i0, i1, c)
 }
 
 // drawOverlays draws the indicators over the candles.

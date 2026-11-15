@@ -298,18 +298,15 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 			p.Fill(ui.Rect{X: x(i) - bw/2, Y: volTop + volH - h, W: bw, H: h}, col.Alpha(0.7), 0)
 		}
 	}
-	var line, mean ui.Path
-	for i, b := range d.bars {
-		if i == 0 {
-			line.MoveTo(x(i), y(b.C))
-			mean.MoveTo(x(i), y(avg[i]))
-		} else {
-			line.LineTo(x(i), y(b.C))
-			mean.LineTo(x(i), y(avg[i]))
-		}
+	mean, line := liner{p: p, w: 1.2, c: k.amber}, liner{p: p, w: 1.5, c: k.accent}
+	for i := range d.bars {
+		mean.lineTo(x(i), y(avg[i]))
 	}
-	p.StrokePath(&mean, 1.2, k.amber)
-	p.StrokePath(&line, 1.5, k.accent)
+	mean.flush()
+	for i, b := range d.bars {
+		line.lineTo(x(i), y(b.C))
+	}
+	line.flush()
 
 	// The open, the middle of the day and the close, when it is in.
 	clock := func(t int64) string { return time.UnixMilli(t).In(loc).Format("15:04") }

@@ -301,9 +301,10 @@ func (a *application) drawOne(p *ui.Painter, plot ui.Rect, m mapper, k palette, 
 		return plot.X + x, plot.Y + y
 	}
 	line := func(x0, y0, x1, y1, w float32, c ui.Color) {
-		var path ui.Path
-		path.MoveTo(x0, y0).LineTo(x1, y1)
-		p.StrokePath(&path, w, c)
+		l := liner{p: p, w: w, c: c}
+		l.moveTo(x0, y0)
+		l.lineTo(x1, y1)
+		l.flush()
 	}
 	if isPosition(d.Kind) {
 		a.drawPosition(p, plot, m, k, d)
