@@ -65,7 +65,7 @@ func myGoUpdates() updates {
 			}
 			return &release{Version: u.Version, Notes: u.Notes, install: u.Install}, nil
 		},
-		relaunch: mygo.App.Relaunch,
+		relaunch: func() { mygo.App.Relaunch() },
 	}
 }
 
