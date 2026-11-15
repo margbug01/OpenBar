@@ -51,6 +51,7 @@ func (a *application) render(c *ui.Context) {
 		a.settingsDialog(c, t, k)
 		a.indicatorsDialog(c, t, k)
 		a.indicatorDialog(c, t, k)
+		a.drawingDialog(c, t, k)
 		a.editorDialog(c, t, k)
 		a.intradayDialog(c, t, k)
 	})

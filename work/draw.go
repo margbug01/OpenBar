@@ -98,17 +98,21 @@ type align int
 const (
 	alignStart align = iota
 	alignCenter
+	alignEnd
 )
 
 func span(s string, size float32, c ui.Color, weight int) ui.Span {
 	return ui.Span{Text: s, Size: size, Color: c, Weight: weight, Features: "tnum"}
 }
 
-// label draws sp with its middle at y and x at its start or center.
+// label draws sp with its middle at y and x at its start, center or end.
 func label(p *ui.Painter, x, y float32, sp ui.Span, a align) {
 	w, h := p.MeasureText(0, sp)
-	if a == alignCenter {
+	switch a {
+	case alignCenter:
 		x -= w / 2
+	case alignEnd:
+		x -= w
 	}
 	p.RichText(x, y-h/2, 0, sp)
 }
@@ -152,13 +156,21 @@ type liner struct {
 	w              float32
 	c              ui.Color
 	pts            [][2]float32 // the piece
+	open           bool         // its last line's start is in pts
 	at             bool         // there is a point to go on from: x, y
 	x, y           float32
 	x0, y0, x1, y1 float32 // the piece's bounds
 }
 
+// moveTo starts a line at x, y: in the same piece, as the dashes of a
+// dashed line, broken off from the one before by a NaN, which StrokePolyline
+// takes for a break.
 func (l *liner) moveTo(x, y float32) {
-	l.flush()
+	if l.open {
+		nan := float32(math.NaN())
+		l.pts = append(l.pts, [2]float32{nan, nan})
+		l.open = false
+	}
 	l.x, l.y, l.at = x, y, true
 }
 
@@ -187,12 +199,16 @@ func (l *liner) lineTo(x, y float32) {
 }
 
 func (l *liner) to(x, y float32) {
-	if len(l.pts) > 0 && (max(l.x1, x)-min(l.x0, x) > pieceMax || max(l.y1, y)-min(l.y0, y) > pieceMax) {
+	if len(l.pts) > 0 && (max(l.x1, x, l.x)-min(l.x0, x, l.x) > pieceMax || max(l.y1, y, l.y)-min(l.y0, y, l.y) > pieceMax) {
 		l.flush()
 	}
-	if len(l.pts) == 0 {
+	if !l.open {
+		if len(l.pts) == 0 {
+			l.x0, l.y0, l.x1, l.y1 = l.x, l.y, l.x, l.y
+		}
 		l.pts = append(l.pts, [2]float32{l.x, l.y})
-		l.x0, l.y0, l.x1, l.y1 = l.x, l.y, l.x, l.y
+		l.x0, l.y0, l.x1, l.y1 = min(l.x0, l.x), min(l.y0, l.y), max(l.x1, l.x), max(l.y1, l.y)
+		l.open = true
 	}
 	l.pts = append(l.pts, [2]float32{x, y})
 	l.x0, l.y0, l.x1, l.y1 = min(l.x0, x), min(l.y0, y), max(l.x1, x), max(l.y1, y)
@@ -208,7 +224,7 @@ func (l *liner) flush() {
 	if l.x1+m >= v.X && l.x0-m <= v.X+v.W && l.y1+m >= v.Y && l.y0-m <= v.Y+v.H {
 		l.p.StrokePolyline(l.pts, l.w, l.c)
 	}
-	l.pts = l.pts[:0]
+	l.pts, l.open = l.pts[:0], false
 }
 
 // fillPieces fills between top and bottom over bars i0 to i1, at x from
@@ -535,7 +551,7 @@ func (a *application) drawChart(p *ui.Painter, r ui.Rect, k palette, hx, hy floa
 		p.Fill(ui.Rect{X: plot.X + plot.W, Y: ly - 10, W: axisW, H: lh}, lastCol, 2)
 		label(p, axisX, ly, span(priceText(last.C), size+0.5, onColor(lastCol), 600), alignStart)
 	}
-	a.drawDrawingLabels(p, plot, dm, k, priceText, size)
+	a.drawDrawingLabels(p, plot, dm, k, priceText, size, bottom)
 	if running {
 		left := closeAt - now
 		label(p, axisX, ly+14, span(countdown(left), size, onColor(lastCol).Alpha(0.85), 0), alignStart)

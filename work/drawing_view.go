@@ -78,10 +78,15 @@ func (a *application) pickTool(kind string) {
 func cloneDrawings(ds []drawing) []drawing {
 	out := make([]drawing, len(ds))
 	for i, d := range ds {
-		out[i] = d
-		out[i].Pts = slices.Clone(d.Pts)
+		out[i] = cloneDrawing(d)
 	}
 	return out
+}
+
+// cloneDrawing is d with slices of its own.
+func cloneDrawing(d drawing) drawing {
+	d.Pts, d.Levels, d.HideOn = slices.Clone(d.Pts), slices.Clone(d.Levels), slices.Clone(d.HideOn)
+	return d
 }
 
 func (a *application) setDrawings(ds []drawing) {
@@ -176,7 +181,7 @@ func (a *application) duplicate(src drawing) (drawing, bool) {
 	if !a.mapReady() {
 		return drawing{}, false
 	}
-	d := src
+	d := cloneDrawing(src)
 	d.ID, d.Locked = a.newID(), false
 	d.Pts = a.mapper().move(src.Pts, 3, 16)
 	a.add(d)
@@ -186,8 +191,7 @@ func (a *application) duplicate(src drawing) (drawing, bool) {
 // copySelected keeps the selected drawing for Ctrl+V.
 func (a *application) copySelected() {
 	if d := a.selected(); d != nil {
-		cp := *d
-		cp.Pts = slices.Clone(d.Pts)
+		cp := cloneDrawing(*d)
 		a.clip, a.clipSym = &cp, a.symbol
 	}
 }
@@ -227,18 +231,12 @@ func (a *application) drawInput(ev ui.InputEvent, inPlot bool) bool {
 			return true
 		}
 		if isPosition(a.tool) { // one click places the whole box
-			a.finish(position(a.tool, a.newID(), snap(), m))
+			a.finish(position(a.newDrawing(a.tool, a.newID(), 4), snap(), m))
 			return true
 		}
 		if a.tool != "" {
 			tool, _ := toolOf(a.tool)
-			d := drawing{ID: a.newID(), Kind: a.tool, Pts: make([]point, tool.points), Width: 2}
-			if d.Kind == "fib" {
-				d.Width = 1
-			}
-			if d.Kind == "text" {
-				d.Text = "文字"
-			}
+			d := a.newDrawing(a.tool, a.newID(), tool.points)
 			for i := range d.Pts {
 				d.Pts[i] = snap()
 			}
@@ -256,8 +254,8 @@ func (a *application) drawInput(ev ui.InputEvent, inPlot bool) bool {
 			return false
 		}
 		a.sel = d.ID
-		if ev.Clicks >= 2 {
-			a.editText = d.Kind == "text"
+		if ev.Clicks >= 2 { // its settings, as TradingView opens them
+			a.openDrawing(d.ID)
 			return true
 		}
 		if d.Locked {
@@ -433,7 +431,7 @@ func barButton(c *ui.Context, t *ui.Theme, k palette, key, label, tip string, ic
 // drawingBar floats over the chart while a drawing is selected.
 func (a *application) drawingBar(c *ui.Context, t *ui.Theme, k palette) {
 	d := a.selected()
-	if d == nil || a.hide || a.creating != nil {
+	if d == nil || a.hide || a.creating != nil || !a.visible(d) {
 		a.barFor = 0
 		return
 	}
@@ -481,14 +479,9 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 		case "long", "short":
 			fixedText(c, span(ratioText(d), 12, t.Text, 600)).Margin(0, 6)
 			// The account and the risk size the position the box reads out.
-			for _, f := range []struct {
-				key, name, tip, unit string
-				pick                 *choice[float64]
-				cur, lo, hi, step    float64
-				set                  func(float64)
-			}{
+			for _, f := range []numField{
 				{"account", "账户金额", "账户里有多少钱（按报价币计）", "账户", &a.accountPick, account(d), 1, 1e12, 100, func(v float64) { d.Account = v }},
-				{"risk", "风险比例", "打到止损时亏掉账户的百分之几", "风险 %", &a.riskPick, riskPct(d), 0.01, 100, 0.5, func(v float64) { d.Risk = v }},
+				riskField(d, &a.riskPick),
 			} {
 				p, picked, changed := f.pick.bind(f.cur)
 				if changed && !d.Locked {
@@ -505,6 +498,11 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 				d.Width = w
 				a.save()
 			})
+			a.dropdown(c, "画线线型", lineStyles, strconv.Itoa(d.Style), func(v string) {
+				a.remember("")
+				d.Style, _ = strconv.Atoi(v)
+				a.save()
+			}).Width(84).MinWidth(84).Tooltip("线型")
 		}
 		if d.Kind == "hline" || d.Kind == "hray" {
 			p, picked, changed := a.pricePick.bind(d.Pts[0].P)
@@ -515,6 +513,10 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 			}
 			step := math.Pow(10, -float64(a.chartDecimals(d.Pts[0].P)))
 			ui.NumberInput(c.Key("drawing-price"), p, -1e15, 1e15, step).Width(170).ReadOnly(d.Locked).Label("价格").Tooltip("价格")
+		}
+		if barButton(c, t, k, "drawing-settings", "画线设置", "设置（双击画线也能打开）", gearIcon, false).Clicked() {
+			id := d.ID
+			a.later = append(a.later, func() { a.openDrawing(id) })
 		}
 		if barButton(c, t, k, "drawing-copy", "复制画线", "复制一份（"+cmdKey+"C、"+cmdKey+"V）", copyIcon, false).Clicked() {
 			a.duplicate(*d)
@@ -541,7 +543,7 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 // input with the focus takes all of those keys first, so typing edits text.
 func (a *application) drawingShortcuts(c *ui.Context) {
 	// The search box edits with these keys, as a field does.
-	if a.dialog || a.indList || a.indDialog || a.ed != nil || a.intra != nil || a.qb.focused {
+	if a.dialog || a.indList || a.indDialog || a.drawDialog || a.ed != nil || a.intra != nil || a.qb.focused {
 		return
 	}
 	if a.creating != nil || a.tool != "" || a.sel != 0 {

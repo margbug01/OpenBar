@@ -113,6 +113,17 @@ type application struct {
 	indBefore  indicator
 	later      []func()
 
+	// A drawing's settings: the dialog, the drawing and its market's
+	// drawings as they were, for 取消 and 撤销, the tab, and its points'
+	// times as typed.
+	drawDialog  bool
+	drawEditing bool
+	drawEdit    int64
+	drawBefore  []drawing
+	drawOpened  []drawing // and as the dialog opened, its defaults made plain
+	drawTab     int
+	ptTimes     map[string]*string
+
 	// The user's scripts: the folder they are in (beside the settings
 	// unless set), the words on the chart about them, those OpenBar saved
 	// itself, and the editor.
@@ -144,6 +155,7 @@ func newApplication(set settings, file string, bin market.Binance, post func(fun
 		quotes:  map[string]market.Ticker{},
 		picks:   map[string]*choice[string]{},
 		colors:  map[string]*choice[ui.Color]{},
+		ptTimes: map[string]*string{},
 		feeds:   map[string]*sharedFeed{},
 		nextID:  maxDrawingID(set.Drawings),
 		icons:   newIcons("", bin.Icons, bin.Icon),

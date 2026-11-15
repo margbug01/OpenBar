@@ -1,8 +1,10 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/egoist/mygo/ui"
@@ -28,10 +30,43 @@ type drawing struct {
 	Size   float64 // a text's, 0 for 14
 	Locked bool    // kept from being moved
 
-	// A position's account and the part of it, in percent, the stop-loss
-	// loses; 0 for the defaults.
+	// A position's account and what the stop-loss loses of it: in percent,
+	// or with RiskAmt in money; 0 for the defaults.
 	Account float64 `json:",omitempty"`
 	Risk    float64 `json:",omitempty"`
+	RiskAmt bool    `json:",omitzero"`
+
+	// How it looks, as its settings dialog sets it (drawing_style.go); a
+	// zero is the kind's default.
+	Style     int      `json:",omitzero"` // lineSolid, lineDashed, lineDotted
+	ExtL      bool     `json:",omitzero"` // the line runs on to the left
+	ExtR      bool     `json:",omitzero"` // and to the right
+	Back      tri      `json:",omitzero"` // the background
+	Fill      hexColor `json:",omitzero"` // its color
+	Opacity   float64  `json:",omitzero"` // a retracement's bands'
+	Mid       tri      `json:",omitzero"` // a middle line
+	Labels    tri      `json:",omitzero"` // its prices and times on the axes
+	Stats     tri      `json:",omitzero"` // what it measures, read out
+	Color2    hexColor `json:",omitzero"` // a range's falling, a position's loss, a text's border
+	Border    bool     `json:",omitzero"` // a text's
+	TextColor hexColor `json:",omitzero"` // a line's text's
+	Bold      bool     `json:",omitzero"`
+	Italic    bool     `json:",omitzero"`
+	TextH     int      `json:",omitzero"` // textLeft…
+	TextV     int      `json:",omitzero"` // textAbove…
+
+	// A Fibonacci retracement's levels, nil for those before they could be
+	// set; their colors or its own; reversed; the levels' text (0 the
+	// values, 1 percent, 2 none) and which side it is on (0 left, 1 right);
+	// the line between its points.
+	Levels    []fibLevel `json:",omitzero"`
+	OneColor  bool       `json:",omitzero"`
+	Reverse   bool       `json:",omitzero"`
+	LevelText int        `json:",omitzero"`
+	LabelSide int        `json:",omitzero"`
+	Trend     tri        `json:",omitzero"`
+
+	HideOn []string `json:",omitzero"` // the intervals it is hidden on
 }
 
 func textSize(d *drawing) float64 {
@@ -73,8 +108,28 @@ func toolOf(kind string) (drawTool, bool) {
 	return drawTool{}, false
 }
 
-// The retracement levels, from the second point (0) back to the first (1).
-var fibLevels = []float64{0, 0.236, 0.382, 0.5, 0.618, 0.786, 1}
+// fibPrice is the price of the level v of retracement d: 0 at its second
+// point, 1 at its first, or the other way reversed.
+func fibPrice(d *drawing, v float64) float64 {
+	p0, p1 := d.Pts[0].P, d.Pts[1].P
+	if d.Reverse {
+		p0, p1 = p1, p0
+	}
+	return p1 + (p0-p1)*v
+}
+
+// spanX is how far across a box or a retracement from x0 to x1 runs: to
+// left or right where it extends that way.
+func spanX(d *drawing, left, right, x0, x1 float32) (float32, float32) {
+	l, r := min(x0, x1), max(x0, x1)
+	if d.ExtL {
+		l = left
+	}
+	if d.ExtR {
+		r = right
+	}
+	return l, r
+}
 
 // mapper turns anchors into places on a plot and back, as a frame lays the
 // chart out. x and y are relative to the plot's top left.
@@ -210,27 +265,31 @@ func (a *application) hits(m mapper, d *drawing, x, y float32) bool {
 	}
 	x1, y1 := m.xy(d.Pts[1])
 	switch d.Kind {
-	case "trend":
-		return near(x0, y0, x1, y1)
-	case "ray":
-		fx, fy := far(x0, y0, x1, y1)
-		return near(x0, y0, fx, fy)
+	case "trend", "ray":
+		return near(extended(d, x0, y0, x1, y1))
 	case "channel":
 		off := channelOffset(m, d)
-		return near(x0, y0, x1, y1) || near(x0, y0+off, x1, y1+off)
-	case "rect", "range":
+		ax0, ay0, ax1, ay1 := extended(d, x0, y0, x1, y1)
+		return near(ax0, ay0, ax1, ay1) || near(ax0, ay0+off, ax1, ay1+off)
+	case "rect":
+		l, r := spanX(d, 0, m.w, x0, x1)
+		return inside(l, y0, r, y1)
+	case "range":
 		return inside(x0, y0, x1, y1)
 	case "long", "short":
 		_, ys := m.xy(d.Pts[2])
 		x3, _ := m.xy(d.Pts[3])
 		return inside(x0, y1, x3, ys)
 	case "fib":
-		if x < min(x0, x1)-hitTolerance || x > max(x0, x1)+hitTolerance {
+		if fibTrendOn(d) && near(x0, y0, x1, y1) {
+			return true
+		}
+		l, r := spanX(d, 0, m.w, x0, x1)
+		if x < l-hitTolerance || x > r+hitTolerance {
 			return false
 		}
-		for _, l := range fibLevels {
-			ly := m.y(d.Pts[1].P + (d.Pts[0].P-d.Pts[1].P)*l)
-			if math.Abs(float64(y-ly)) <= hitTolerance {
+		for _, lv := range fibLevels(d) {
+			if !lv.Off && math.Abs(float64(y-m.y(fibPrice(d, lv.V)))) <= hitTolerance {
 				return true
 			}
 		}
@@ -249,7 +308,7 @@ func (a *application) hitDrawing(m mapper, x, y float32) (*drawing, int) {
 		return nil, -1
 	}
 	ds := a.set.Drawings[a.symbol]
-	if d := a.selected(); d != nil && !d.Locked {
+	if d := a.selected(); d != nil && !d.Locked && a.visible(d) {
 		for i, pt := range d.Pts {
 			px, py := m.xy(pt)
 			if math.Hypot(float64(x-px), float64(y-py)) <= handleRadius+3 {
@@ -258,12 +317,15 @@ func (a *application) hitDrawing(m mapper, x, y float32) (*drawing, int) {
 		}
 	}
 	for i := len(ds) - 1; i >= 0; i-- {
-		if a.hits(m, &ds[i], x, y) {
+		if a.visible(&ds[i]) && a.hits(m, &ds[i], x, y) {
 			return &ds[i], -1
 		}
 	}
 	return nil, -1
 }
+
+// visible reports whether d shows on the chart's bars.
+func (a *application) visible(d *drawing) bool { return !hiddenOn(d, a.interval) }
 
 // drawDrawings paints the market's drawings, and the one being drawn, on
 // the plot; the caller clips to it.
@@ -274,7 +336,9 @@ func (a *application) drawDrawings(p *ui.Painter, plot ui.Rect, m mapper, k pale
 	}
 	ds := a.set.Drawings[a.symbol]
 	for i := range ds {
-		a.drawOne(p, plot, m, k, &ds[i])
+		if a.visible(&ds[i]) {
+			a.drawOne(p, plot, m, k, &ds[i])
+		}
 	}
 	if a.creating != nil {
 		a.drawOne(p, plot, m, k, a.creating)
@@ -283,7 +347,7 @@ func (a *application) drawDrawings(p *ui.Painter, plot ui.Rect, m mapper, k pale
 	if a.creating != nil {
 		sel = a.creating
 	}
-	if sel == nil || sel.Locked { // a locked drawing shows no points to drag
+	if sel == nil || sel.Locked || !a.visible(sel) { // a locked drawing shows no points to drag
 		return
 	}
 	for _, pt := range sel.Pts {
@@ -295,103 +359,216 @@ func (a *application) drawDrawings(p *ui.Painter, plot ui.Rect, m mapper, k pale
 }
 
 func (a *application) drawOne(p *ui.Painter, plot ui.Rect, m mapper, k palette, d *drawing) {
-	col, w := d.Color.or(k.accent), float32(max(d.Width, 1))
+	col, w, style := d.Color.or(k.accent), lineWidth(d), d.Style
 	at := func(pt point) (float32, float32) {
 		x, y := m.xy(pt)
 		return plot.X + x, plot.Y + y
-	}
-	line := func(x0, y0, x1, y1, w float32, c ui.Color) {
-		l := liner{p: p, w: w, c: c}
-		l.moveTo(x0, y0)
-		l.lineTo(x1, y1)
-		l.flush()
 	}
 	if isPosition(d.Kind) {
 		a.drawPosition(p, plot, m, k, d)
 		return
 	}
+	left, right := plot.X, plot.X+plot.W
 	x0, y0 := at(d.Pts[0])
 	switch d.Kind {
-	case "hline":
-		p.Line(plot.X, y0, plot.X+plot.W, y0, w, col)
-		return
-	case "hray":
-		p.Line(x0, y0, plot.X+plot.W, y0, w, col)
+	case "hline", "hray":
+		if d.Kind == "hray" {
+			left = x0
+		}
+		strokeLine(p, left, y0, right, y0, w, col, style)
+		lineText(p, d, left, y0, right, y0, textColor(d, col))
 		return
 	case "vline":
-		p.Line(x0, plot.Y, x0, plot.Y+plot.H, w, col)
+		strokeLine(p, x0, plot.Y, x0, plot.Y+plot.H, w, col, style)
+		lineText(p, d, x0, plot.Y+plot.H, x0, plot.Y, textColor(d, col))
 		return
 	case "text":
-		sp := ui.Span{Text: d.Text, Size: float32(textSize(d)), Weight: 500, Color: col}
+		sp := textSpan(d, d.Text, col)
 		tw, th := p.MeasureText(0, sp)
+		box := ui.Rect{X: x0 - 2, Y: y0 - th/2 - 2, W: tw + 4, H: th + 4}
+		if backOn(d) || d.Border {
+			box = ui.Rect{X: x0 - 6, Y: y0 - th/2 - 4, W: tw + 12, H: th + 8}
+		}
+		if backOn(d) {
+			p.Fill(box, backColor(d, col), 4)
+		}
+		if d.Border {
+			p.Stroke(box, d.Color2.or(col), 4, 1)
+		}
 		p.RichText(x0, y0-th/2, 0, sp)
-		a.textBox[d.ID] = ui.Rect{X: x0 - plot.X - 2, Y: y0 - plot.Y - th/2 - 2, W: tw + 4, H: th + 4}
+		a.textBox[d.ID] = ui.Rect{X: box.X - plot.X, Y: box.Y - plot.Y, W: box.W, H: box.H}
 		return
 	}
 	x1, y1 := at(d.Pts[1])
 	switch d.Kind {
-	case "trend":
-		line(x0, y0, x1, y1, w, col)
-	case "ray":
-		fx, fy := far(x0, y0, x1, y1)
-		line(x0, y0, fx, fy, w, col)
+	case "trend", "ray":
+		ex0, ey0, ex1, ey1 := extendedIn(d, left, right, x0, y0, x1, y1)
+		strokeLine(p, ex0, ey0, ex1, ey1, w, col, style)
+		lineText(p, d, x0, y0, x1, y1, textColor(d, col))
+		if statsOn(d) {
+			angle := -math.Atan2(float64(y1-y0), float64(x1-x0)) * 180 / math.Pi
+			a.statsBox(p, plot, k, trendStats(m, d.Pts[0], d.Pts[1], a.chartDecimals(d.Pts[0].P), angle), x1, y1, col)
+		}
 	case "channel":
 		off := channelOffset(m, d)
-		var band ui.Path
-		band.MoveTo(x0, y0).LineTo(x1, y1).LineTo(x1, y1+off).LineTo(x0, y0+off).Close()
-		p.FillPath(&band, col.Alpha(0.1))
-		line(x0, y0, x1, y1, w, col)
-		line(x0, y0+off, x1, y1+off, w, col)
-		line(x0, y0+off/2, x1, y1+off/2, 1, col.Alpha(0.5))
-	case "rect":
-		r := ui.Rect{X: min(x0, x1), Y: min(y0, y1), W: float32(math.Abs(float64(x1 - x0))), H: float32(math.Abs(float64(y1 - y0)))}
-		p.Fill(r, col.Alpha(0.15), 0)
-		p.Stroke(r, col, 0, w)
-	case "fib":
-		l, r := min(x0, x1), max(x0, x1)
-		top, bottom := min(y0, y1), max(y0, y1)
-		p.Fill(ui.Rect{X: l, Y: top, W: r - l, H: bottom - top}, col.Alpha(0.06), 0)
-		line(x0, y0, x1, y1, 1, col.Alpha(0.5))
-		dec := a.chartDecimals(d.Pts[0].P)
-		for _, lv := range fibLevels {
-			pr := d.Pts[1].P + (d.Pts[0].P-d.Pts[1].P)*lv
-			ly := plot.Y + m.y(pr)
-			p.Line(l, ly, r, ly, max(w-1, 1), col)
-			label(p, l+4, ly-8, span(fmt.Sprintf("%g (%s)", lv, formatPrice(pr, dec)), 11, col, 0), alignStart)
+		ax0, ay0, ax1, ay1 := extendedIn(d, left, right, x0, y0, x1, y1)
+		if backOn(d) {
+			var band ui.Path
+			band.MoveTo(ax0, ay0).LineTo(ax1, ay1).LineTo(ax1, ay1+off).LineTo(ax0, ay0+off).Close()
+			p.FillPath(&band, backColor(d, col))
 		}
+		strokeLine(p, ax0, ay0, ax1, ay1, w, col, style)
+		strokeLine(p, ax0, ay0+off, ax1, ay1+off, w, col, style)
+		if midOn(d) {
+			strokeLine(p, ax0, ay0+off/2, ax1, ay1+off/2, 1, col.Alpha(0.5), lineDashed)
+		}
+	case "rect":
+		l, r := spanX(d, left, right, x0, x1)
+		box := ui.Rect{X: l, Y: min(y0, y1), W: r - l, H: float32(math.Abs(float64(y1 - y0)))}
+		if backOn(d) {
+			p.Fill(box, backColor(d, col), 0)
+		}
+		strokeBox(p, box, w, col, style)
+		if midOn(d) {
+			strokeLine(p, l, box.Y+box.H/2, r, box.Y+box.H/2, 1, col.Alpha(0.6), lineDashed)
+		}
+		boxText(p, d, box, textColor(d, col))
+	case "fib":
+		a.drawFib(p, plot, m, d, x0, y0, x1, y1, col, w)
 	case "range":
-		a.drawRange(p, plot, m, k, d, x0, y0, x1, y1, line)
+		a.drawRange(p, plot, m, k, d, x0, y0, x1, y1)
+	}
+}
+
+// extendedIn is extended, kept to the plot from left to right: so that a
+// background between extended lines is no wider than it.
+func extendedIn(d *drawing, left, right, x0, y0, x1, y1 float32) (float32, float32, float32, float32) {
+	x0, y0, x1, y1 = extended(d, x0, y0, x1, y1)
+	t0, t1 := clipSeg(x0, y0, x1, y1, left-4, -1e9, right+4, 1e9)
+	if t1 <= t0 || x0 == x1 {
+		return x0, y0, x1, y1
+	}
+	dx, dy := x1-x0, y1-y0
+	return x0 + dx*t0, y0 + dy*t0, x0 + dx*t1, y0 + dy*t1
+}
+
+// statsBox reads lines out in a box by the point x, y, in the drawing's color.
+func (a *application) statsBox(p *ui.Painter, plot ui.Rect, k palette, lines []string, x, y float32, col ui.Color) {
+	spans := make([]ui.Span, len(lines))
+	var bw, bh float32
+	for i, s := range lines {
+		spans[i] = span(s, 11.5, k.text, map[bool]int{true: 600, false: 0}[i == 0])
+		w, h := p.MeasureText(0, spans[i])
+		bw, bh = max(bw, w), bh+h
+	}
+	bw, bh = bw+14, bh+8
+	bx, by := min(x+10, plot.X+plot.W-bw-4), y+10
+	if by+bh > plot.Y+plot.H {
+		by = y - 10 - bh
+	}
+	box := ui.Rect{X: bx, Y: by, W: bw, H: bh}
+	p.Fill(box, k.bg.Alpha(0.92), 4)
+	p.Stroke(box, col, 4, 1)
+	ty := by + 4
+	for _, sp := range spans {
+		_, h := p.MeasureText(0, sp)
+		p.RichText(bx+7, ty, 0, sp)
+		ty += h
+	}
+}
+
+// fibSize is the size of a retracement's labels.
+func fibSize(d *drawing) float32 {
+	if d.Size > 0 {
+		return float32(d.Size)
+	}
+	return 11
+}
+
+// drawFib draws a retracement: its levels across from one point to the
+// other, or on as it extends, the bands between them, their labels, and
+// the line between the points.
+func (a *application) drawFib(p *ui.Painter, plot ui.Rect, m mapper, d *drawing, x0, y0, x1, y1 float32, col ui.Color, w float32) {
+	l, r := spanX(d, plot.X, plot.X+plot.W, x0, x1)
+	var on []fibLevel
+	for _, lv := range fibLevels(d) {
+		if !lv.Off {
+			on = append(on, lv)
+		}
+	}
+	slices.SortStableFunc(on, func(a, b fibLevel) int { return cmp.Compare(a.V, b.V) })
+	colOf := func(lv fibLevel) ui.Color {
+		if oneColor(d) || !lv.C.set() {
+			return col
+		}
+		return ui.Color(lv.C)
+	}
+	yOf := func(lv fibLevel) float32 { return plot.Y + m.y(fibPrice(d, lv.V)) }
+	if backOn(d) {
+		for i := 1; i < len(on); i++ {
+			ya, yb := yOf(on[i-1]), yOf(on[i])
+			p.Fill(ui.Rect{X: l, Y: min(ya, yb), W: r - l, H: float32(math.Abs(float64(yb - ya)))}, colOf(on[i]).Alpha(fibOpacity(d)), 0)
+		}
+	}
+	if fibTrendOn(d) {
+		strokeLine(p, x0, y0, x1, y1, 1, col.Alpha(0.6), lineDashed)
+	}
+	dec := a.chartDecimals(d.Pts[0].P)
+	for _, lv := range on {
+		ly, c := yOf(lv), colOf(lv)
+		strokeLine(p, l, ly, r, ly, w, c, d.Style)
+		text := fibText(d, lv, fibPrice(d, lv.V), dec)
+		if text == "" {
+			continue
+		}
+		sp := span(text, fibSize(d), c, 0)
+		if d.LabelSide == 1 {
+			label(p, r-4, ly-fibSize(d)*0.75, sp, alignEnd)
+		} else {
+			label(p, l+4, ly-fibSize(d)*0.75, sp, alignStart)
+		}
 	}
 }
 
 // drawRange is the price range: the box between its points, an arrow from
 // the first price to the second, and how far that is in price, percent,
 // bars and time.
-func (a *application) drawRange(p *ui.Painter, plot ui.Rect, m mapper, k palette, d *drawing, x0, y0, x1, y1 float32, line func(x0, y0, x1, y1, w float32, c ui.Color)) {
+func (a *application) drawRange(p *ui.Painter, plot ui.Rect, m mapper, k palette, d *drawing, x0, y0, x1, y1 float32) {
 	from, to := d.Pts[0], d.Pts[1]
-	col := ui.Hex(barUp)
+	col := d.Color.or(ui.Hex(barUp))
 	if to.P < from.P {
-		col = ui.Hex(barDown)
+		col = d.Color2.or(ui.Hex(barDown))
 	}
 	l, r, top, bottom := min(x0, x1), max(x0, x1), min(y0, y1), max(y0, y1)
-	p.Fill(ui.Rect{X: l, Y: top, W: r - l, H: bottom - top}, col.Alpha(0.15), 0)
+	if backOn(d) {
+		p.Fill(ui.Rect{X: l, Y: top, W: r - l, H: bottom - top}, col.Alpha(0.15), 0)
+	}
 	cx := (l + r) / 2
-	line(cx, y0, cx, y1, 1.5, col)
+	lw := max(lineWidth(d)-0.5, 1.5)
+	strokeLine(p, cx, y0, cx, y1, lw, col, lineSolid)
 	head := float32(5)
 	if y1 > y0 {
 		head = -5
 	}
-	line(cx-5, y1+head, cx, y1, 1.5, col)
-	line(cx+5, y1+head, cx, y1, 1.5, col)
+	strokeLine(p, cx-5, y1+head, cx, y1, lw, col, lineSolid)
+	strokeLine(p, cx+5, y1+head, cx, y1, lw, col, lineSolid)
+	if !statsOn(d) {
+		return
+	}
 	dec := a.chartDecimals(from.P)
 	move, pct := to.P-from.P, 0.0
 	if from.P != 0 {
 		pct = move / from.P * 100
 	}
 	bars := int(math.Round(m.idx(to.T) - m.idx(from.T)))
+	size := float32(12)
+	if d.Size > 0 {
+		size = float32(d.Size)
+	}
+	ink := onColor(col)
 	lines := []ui.Span{
-		span(fmt.Sprintf("%s (%+.2f%%)", formatSigned(move, dec), pct), 12, k.onLabel, 600),
-		span(fmt.Sprintf("%d 根K线 · %s", bars, spanText(to.T-from.T)), 11.5, k.onLabel, 0),
+		span(fmt.Sprintf("%s (%+.2f%%)", formatSigned(move, dec), pct), size, ink, 600),
+		span(fmt.Sprintf("%d 根K线 · %s", bars, spanText(to.T-from.T)), size-0.5, ink, 0),
 	}
 	var bw, bh float32
 	for _, sp := range lines {
@@ -435,21 +612,43 @@ func spanText(ms int64) string {
 	return fmt.Sprintf("%d分", m)
 }
 
-// drawDrawingLabels puts the prices of horizontal lines on the price axis.
-func (a *application) drawDrawingLabels(p *ui.Painter, plot ui.Rect, m mapper, k palette, priceText func(float64) string, size float32) {
+// drawDrawingLabels puts where drawings are on the axes, as they show it:
+// prices on the price axis, times on the time axis, whose top is bottom.
+func (a *application) drawDrawingLabels(p *ui.Painter, plot ui.Rect, m mapper, k palette, priceText func(float64) string, size, bottom float32) {
 	if a.hide {
 		return
 	}
-	for _, d := range a.set.Drawings[a.symbol] {
-		if d.Kind != "hline" && d.Kind != "hray" {
+	st, iv := &a.set.Chart, a.intervalMs()
+	for i := range a.set.Drawings[a.symbol] {
+		d := &a.set.Drawings[a.symbol][i]
+		if !labelsOn(d) || !a.visible(d) || !hasLabels(d.Kind) {
 			continue
 		}
-		y := m.y(d.Pts[0].P)
-		if y < 0 || y > plot.H {
-			continue
+		col := d.Color.or(k.accent)
+		pts := d.Pts
+		if d.Kind == "hline" || d.Kind == "hray" || d.Kind == "vline" {
+			pts = pts[:1]
 		}
-		y += plot.Y
-		p.Fill(ui.Rect{X: plot.X + plot.W, Y: y - 10, W: axisW, H: 20}, d.Color.or(k.accent), 2)
-		label(p, plot.X+plot.W+8, y, span(priceText(d.Pts[0].P), size+0.5, k.onLabel, 0), alignStart)
+		for _, pt := range pts {
+			if d.Kind != "vline" {
+				if y := m.y(pt.P); y >= 0 && y <= plot.H {
+					y += plot.Y
+					p.Fill(ui.Rect{X: plot.X + plot.W, Y: y - 10, W: axisW, H: 20}, col, 2)
+					label(p, plot.X+plot.W+8, y, span(priceText(pt.P), size+0.5, onColor(col), 0), alignStart)
+				}
+			}
+			if d.Kind == "hline" || d.Kind == "hray" {
+				continue
+			}
+			x := m.x(pt.T)
+			if x < 0 || x > plot.W {
+				continue
+			}
+			ts := span(st.crossTime(pt.T, iv), size+0.5, onColor(col), 0)
+			w, _ := p.MeasureText(0, ts)
+			bx := min(max(plot.X+x-w/2-8, plot.X), plot.X+plot.W-w-16)
+			p.Fill(ui.Rect{X: bx, Y: bottom + 3, W: w + 16, H: timeH - 6}, col, 2)
+			label(p, bx+8, bottom+timeH/2, ts, alignStart)
+		}
 	}
 }

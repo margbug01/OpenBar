@@ -34,15 +34,26 @@ func riskPct(d *drawing) float64 {
 	return defaultRisk
 }
 
+// riskMoney is what the stop-loss loses: the risk in money, or that part
+// of the account.
+func riskMoney(d *drawing) float64 {
+	if d.RiskAmt {
+		if d.Risk > 0 {
+			return d.Risk
+		}
+		return account(d) * defaultRisk / 100
+	}
+	return account(d) * riskPct(d) / 100
+}
+
 // positionSize is how much to buy or sell for the stop-loss to lose the
-// risk, that part of the account; false without a stop-loss away from the
-// entry.
+// risk; false without a stop-loss away from the entry.
 func positionSize(d *drawing) (float64, bool) {
 	per := math.Abs(d.Pts[0].P - d.Pts[2].P)
 	if per == 0 {
 		return 0, false
 	}
-	return account(d) * riskPct(d) / 100 / per, true
+	return riskMoney(d) / per, true
 }
 
 // qtyText is a quantity to about four digits.
@@ -56,15 +67,16 @@ func qtyText(q float64) string {
 
 func isPosition(kind string) bool { return kind == "long" || kind == "short" }
 
-// position is a new box of kind entered at pt: the stop-loss a twentieth of
-// the prices on screen away, the take-profit twice that on the other side.
-func position(kind string, id int64, pt point, m mapper) drawing {
+// position places d, a new box, entered at pt: the stop-loss a twentieth
+// of the prices on screen away, the take-profit twice that on the other side.
+func position(d drawing, pt point, m mapper) drawing {
 	risk := (m.sc.hi - m.sc.lo) * 0.05
-	if kind == "short" {
+	if d.Kind == "short" {
 		risk = -risk
 	}
 	end := point{T: m.timeAt(m.idx(pt.T) + positionBars), P: pt.P}
-	return drawing{ID: id, Kind: kind, Width: 1, Pts: []point{pt, {T: pt.T, P: pt.P + 2*risk}, {T: pt.T, P: pt.P - risk}, end}}
+	d.Pts = []point{pt, {T: pt.T, P: pt.P + 2*risk}, {T: pt.T, P: pt.P - risk}, end}
+	return d
 }
 
 // fixPosition keeps a box square after one of its points moved: the
@@ -111,10 +123,13 @@ func (a *application) drawPosition(p *ui.Painter, plot ui.Rect, m mapper, k pale
 	box := func(y0, y1 float32) ui.Rect {
 		return ui.Rect{X: l, Y: min(y0, y1), W: r - l, H: float32(math.Abs(float64(y1 - y0)))}
 	}
-	profit, loss := ui.Hex(barUp), ui.Hex(barDown)
+	profit, loss := d.Color.or(ui.Hex(barUp)), d.Color2.or(ui.Hex(barDown))
 	p.Fill(box(ye, yt), profit.Alpha(0.2), 0)
 	p.Fill(box(ye, ys), loss.Alpha(0.2), 0)
 	p.Line(l, ye, r, ye, 1, k.muted)
+	if !statsOn(d) {
+		return
+	}
 
 	entry := d.Pts[0].P
 	dec := a.chartDecimals(entry)
@@ -159,4 +174,20 @@ func (a *application) drawPosition(p *ui.Painter, plot ui.Rect, m mapper, k pale
 	w, h := p.MeasureText(0, sp)
 	p.Fill(ui.Rect{X: cx - w/2 - 6, Y: ye - h/2 - 3, W: w + 12, H: h + 6}, k.label, 3)
 	p.RichText(cx-w/2, ye-h/2, 0, sp)
+}
+
+// numField is a number a position takes in the drawing bar.
+type numField struct {
+	key, name, tip, unit string
+	pick                 *choice[float64]
+	cur, lo, hi, step    float64
+	set                  func(float64)
+}
+
+// riskField is the risk: in percent of the account, or in money.
+func riskField(d *drawing, pick *choice[float64]) numField {
+	if d.RiskAmt {
+		return numField{"risk-amount", "风险金额", "打到止损时亏多少钱（按报价币计）", "风险", pick, riskMoney(d), 0.01, 1e12, 10, func(v float64) { d.Risk = v }}
+	}
+	return numField{"risk", "风险比例", "打到止损时亏掉账户的百分之几", "风险 %", pick, riskPct(d), 0.01, 100, 0.5, func(v float64) { d.Risk = v }}
 }

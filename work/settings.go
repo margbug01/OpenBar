@@ -38,6 +38,9 @@ type settings struct {
 	FavTools   []string
 	FavBar     bool
 	FavX, FavY float64
+	// DrawDefaults are how the tools draw, by kind, as kept with 存为默认 in
+	// a drawing's settings: its look, not its points.
+	DrawDefaults map[string]drawing `json:",omitempty"`
 }
 
 // chartSettings are a chart's: its market, its bars and its indicators.
