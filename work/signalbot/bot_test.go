@@ -304,6 +304,56 @@ func TestFollowWhileDeciding(t *testing.T) {
 	}
 }
 
+// The chart goes out at once; Claude's reason comes into the same message
+// when it is written, the buttons kept while the owner decides.
+func TestReasonLater(t *testing.T) {
+	srv, calls := fakeTelegram(t)
+	dir := t.TempDir()
+	now := time.Date(2026, 11, 9, 14, 0, 0, 0, beijing)
+	b := newBot(dir, srv.URL+"/botX", srv.Client())
+	b.chat, b.Now, b.checked = 111, func() time.Time { return now }, now
+	ctx := context.Background()
+	reason := func(id, text string) {
+		os.WriteFile(filepath.Join(dir, "inbox", id+".reason"), []byte(text), 0o600)
+	}
+
+	// a reason before its signal went out waits for it
+	putSignal(t, dir, "s1", now)
+	reason("s1", "回踩 EMA20 第一次，结构干净")
+	b.reason(ctx, filepath.Join(dir, "inbox", "s1.reason"))
+	if c := calls(); len(c) != 0 {
+		t.Fatalf("a reason before its signal: %v", c)
+	}
+	b.tick(ctx)
+	c := calls()
+	if len(c) != 2 || c[0].method != "sendPhoto" || !strings.Contains(c[0].params["caption"].(string), "Claude 在看图") {
+		t.Fatalf("send: %v", c)
+	}
+	edit := c[1]
+	if edit.method != "editMessageCaption" || !strings.Contains(edit.params["caption"].(string), "回踩 EMA20 第一次") ||
+		strings.Contains(edit.params["caption"].(string), "Claude 在看图") || !strings.Contains(fmt.Sprint(edit.params["reply_markup"]), "do:s1") {
+		t.Fatalf("reason: %v", edit)
+	}
+	if r := record(t, dir, "s1"); r.Reason != "回踩 EMA20 第一次，结构干净" {
+		t.Fatalf("not kept: %+v", r)
+	}
+
+	// one coming after the owner chose goes in too, with no buttons
+	putSignal(t, dir, "s2", now)
+	b.tick(ctx)
+	b.handle(ctx, press(111, "skip:s2"))
+	calls()
+	reason("s2", "第3次回踩")
+	b.tick(ctx)
+	c = calls()
+	if len(c) != 1 || !strings.Contains(c[0].params["caption"].(string), "第3次回踩") || strings.Contains(fmt.Sprint(c[0].params["reply_markup"]), "do:s2") {
+		t.Fatalf("after the choice: %v", c)
+	}
+	if fs, _ := filepath.Glob(filepath.Join(dir, "inbox", "*")); len(fs) != 0 {
+		t.Fatalf("left in the inbox: %v", fs)
+	}
+}
+
 func TestExit(t *testing.T) {
 	at := time.Date(2026, 11, 9, 14, 0, 0, 0, beijing)
 	bar := func(m int, h, l, c float64) market.Bar {

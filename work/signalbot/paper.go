@@ -152,9 +152,5 @@ func save(dir string, r *Record) error {
 	if err != nil {
 		return err
 	}
-	file := filepath.Join(dir, "sent", r.ID+".json")
-	if err := os.WriteFile(file+".tmp", data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(file+".tmp", file)
+	return writeWhole(filepath.Join(dir, "sent", r.ID+".json"), data)
 }

@@ -54,7 +54,7 @@ func main() {
 		fmt.Println("放进收件箱了，开着的 signalbot 几秒内发出去")
 		return
 	}
-	b, err := signalbot.New(dir, &http.Client{Timeout: 60 * time.Second, Transport: tr})
+	b, err := signalbot.New(dir, &http.Client{Timeout: 30 * time.Second, Transport: tr})
 	if err != nil {
 		log.Fatal(err)
 	}

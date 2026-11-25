@@ -99,8 +99,11 @@ func midnight(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, beijing)
 }
 
-// push draws s, has Claude read it and leaves both in the inbox; the json
-// last, whole, so the bot never sends half a signal.
+// push draws s and leaves it in the inbox, for the bot to send at once; then
+// has Claude read the chart, some 15 s, and leaves the reason beside it
+// (inbox/<id>.reason), for the bot to add to the message. The chart goes
+// straight to sent/, where it stays while Claude reads it. Files are written
+// whole, so the bot never reads half of one.
 func (sc *Scanner) push(ctx context.Context, b []market.Bar, s Setup, kind string, test bool) error {
 	now := sc.Now()
 	at := time.UnixMilli(s.Bar + 5*60_000)
@@ -119,22 +122,29 @@ func (sc *Scanner) push(ctx context.Context, b []market.Bar, s Setup, kind strin
 	}
 	inbox := filepath.Join(sc.Dir, "inbox")
 	os.MkdirAll(inbox, 0o700)
-	sig.Image = sig.ID + ".png"
-	img := filepath.Join(inbox, sig.Image)
-	if err := sc.Chart(b[max(i-85, 0):i+1], sig, "", img); err != nil {
+	os.MkdirAll(filepath.Join(sc.Dir, "sent"), 0o700)
+	sig.Image = filepath.Join(sc.Dir, "sent", sig.ID+".png")
+	if err := sc.Chart(b[max(i-85, 0):i+1], sig, "", sig.Image); err != nil {
 		return fmt.Errorf("chart: %w", err)
 	}
-	reason, err := sc.Coach.Reason(ctx, sig, img)
-	if err != nil {
-		log.Printf("%s: %v", sig.ID, err)
-		reason = "（这条 Claude 没看成图，只有计划）"
-	}
-	sig.Reason = reason
 	data, err := json.MarshalIndent(sig, "", "  ")
 	if err != nil {
 		return err
 	}
-	file := filepath.Join(inbox, sig.ID+".json")
+	if err := writeWhole(filepath.Join(inbox, sig.ID+".json"), data); err != nil {
+		return err
+	}
+	t0 := time.Now()
+	reason, err := sc.Coach.Reason(ctx, sig, sig.Image)
+	if err != nil {
+		log.Printf("%s: %v", sig.ID, err)
+		reason = "（这条 Claude 没看成图，只有计划）"
+	}
+	log.Printf("%s: 收盘后 %v 交给机器人，Claude 又用了 %v", sig.ID, t0.Sub(at).Round(100*time.Millisecond), time.Since(t0).Round(100*time.Millisecond))
+	return writeWhole(filepath.Join(inbox, sig.ID+".reason"), []byte(reason))
+}
+
+func writeWhole(file string, data []byte) error {
 	if err := os.WriteFile(file+".tmp", data, 0o600); err != nil {
 		return err
 	}

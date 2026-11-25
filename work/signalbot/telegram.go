@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -69,6 +70,13 @@ func (a api) call(ctx context.Context, method string, params, out any) error {
 func (a api) do(req *http.Request, method string, out any) error {
 	resp, err := a.http.Do(req)
 	if err != nil {
+		// When the proxy drops a tunnel without closing it, the pooled
+		// connections hang till the timeout, one call after another (seen
+		// 11-26 00:14–00:18, and the timeouts of 11-22 and 11-23 look the
+		// same): start the next call on a new one.
+		if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			a.http.CloseIdleConnections()
+		}
 		return fmt.Errorf("telegram %s: %w", method, redact(err))
 	}
 	defer resp.Body.Close()

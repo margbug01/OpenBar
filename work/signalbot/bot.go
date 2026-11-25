@@ -142,6 +142,10 @@ func (b *Bot) tick(ctx context.Context) {
 			log.Printf("%s: %v", filepath.Base(f), err)
 		}
 	}
+	reasons, _ := filepath.Glob(filepath.Join(b.dir, "inbox", "*.reason"))
+	for _, f := range reasons {
+		b.reason(ctx, f)
+	}
 	now := b.Now()
 	for _, r := range b.open {
 		if r.Choice == "" && now.After(r.Until) {
@@ -184,10 +188,7 @@ func (b *Bot) send(ctx context.Context, file string) error {
 	}
 	r := &Record{Signal: s, Until: b.Now().Add(b.TTL)}
 	r.Caption = Caption(s, r.Until)
-	kb := &keyboard{Rows: [][]button{{
-		{Text: "下单", Data: "do:" + s.ID}, {Text: "稍等", Data: "wait:" + s.ID}, {Text: "不下", Data: "skip:" + s.ID},
-	}}}
-	m, err := b.api.sendPhoto(ctx, b.chat, img, clip(r.Caption), kb)
+	m, err := b.api.sendPhoto(ctx, b.chat, img, clip(r.Caption), buttons(s.ID))
 	if err != nil {
 		return err
 	}
@@ -201,6 +202,36 @@ func (b *Bot) send(ctx context.Context, file string) error {
 	os.Remove(file)
 	b.open[s.ID] = r
 	return nil
+}
+
+func buttons(id string) *keyboard {
+	return &keyboard{Rows: [][]button{{
+		{Text: "下单", Data: "do:" + id}, {Text: "稍等", Data: "wait:" + id}, {Text: "不下", Data: "skip:" + id},
+	}}}
+}
+
+// reason adds Claude's reason, come after the signal, to its message. One
+// for a signal not sent yet waits for it.
+func (b *Bot) reason(ctx context.Context, file string) {
+	id := strings.TrimSuffix(filepath.Base(file), ".reason")
+	if _, err := os.Stat(filepath.Join(b.dir, "inbox", id+".json")); err == nil {
+		return
+	}
+	r := b.open[id]
+	if r == nil { // done already
+		for _, x := range load(b.dir, time.Time{}) {
+			if x.ID == id {
+				r = x
+			}
+		}
+	}
+	data, err := os.ReadFile(file)
+	if err == nil && r != nil {
+		r.Reason = strings.TrimSpace(string(data))
+		r.Caption = Caption(r.Signal, r.Until)
+		b.update(ctx, r)
+	}
+	os.Remove(file)
 }
 
 // Caption is the plan as the message shows it.
@@ -231,6 +262,8 @@ func Caption(s Signal, until time.Time) string {
 	}
 	if s.Reason != "" {
 		fmt.Fprintf(&sb, "\n\n%s", s.Reason)
+	} else {
+		sb.WriteString("\n\nClaude 在看图，十几秒后补在这里")
 	}
 	fmt.Fprintf(&sb, "\n\n%s 前有效", until.In(beijing).Format("15:04"))
 	return sb.String()
@@ -280,7 +313,11 @@ func (b *Bot) update(ctx context.Context, r *Record) {
 	if err := save(b.dir, r); err != nil {
 		log.Print(err)
 	}
-	if err := b.api.editCaption(ctx, b.chat, r.Msg, r.text(), nil); err != nil {
+	var kb *keyboard
+	if r.Choice == "" {
+		kb = buttons(r.ID)
+	}
+	if err := b.api.editCaption(ctx, b.chat, r.Msg, r.text(), kb); err != nil {
 		log.Printf("%s: %v", r.ID, err)
 	}
 	if r.done() {
