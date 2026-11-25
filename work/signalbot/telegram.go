@@ -101,38 +101,73 @@ func redact(err error) error {
 
 // sendPhoto uploads the picture at path with a caption and buttons.
 func (a api) sendPhoto(ctx context.Context, chat int64, path, caption string, kb *keyboard) (message, error) {
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	w.WriteField("chat_id", fmt.Sprint(chat))
-	w.WriteField("caption", caption)
+	fields := map[string]string{"chat_id": fmt.Sprint(chat), "caption": caption}
 	if kb != nil {
 		j, _ := json.Marshal(kb)
-		w.WriteField("reply_markup", string(j))
+		fields["reply_markup"] = string(j)
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return message{}, err
+	var m message
+	return m, a.upload(ctx, "sendPhoto", fields, map[string]string{"photo": path}, &m)
+}
+
+// photo is one picture of an album.
+type photo struct {
+	path, caption string
+}
+
+// sendAlbum sends up to 10 pictures as one message.
+func (a api) sendAlbum(ctx context.Context, chat int64, ps []photo) error {
+	type media struct {
+		Type    string `json:"type"`
+		Media   string `json:"media"`
+		Caption string `json:"caption,omitempty"`
 	}
-	defer f.Close()
-	part, err := w.CreateFormFile("photo", filepath.Base(path))
-	if err != nil {
-		return message{}, err
+	var ms []media
+	files := map[string]string{}
+	for i, p := range ps {
+		name := fmt.Sprintf("p%d", i)
+		ms = append(ms, media{"photo", "attach://" + name, p.caption})
+		files[name] = p.path
 	}
-	if _, err := io.Copy(part, f); err != nil {
-		return message{}, err
+	j, _ := json.Marshal(ms)
+	return a.upload(ctx, "sendMediaGroup", map[string]string{"chat_id": fmt.Sprint(chat), "media": string(j)}, files, nil)
+}
+
+// upload posts fields and the files at their paths, by field name.
+func (a api) upload(ctx context.Context, method string, fields, files map[string]string, out any) error {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		w.WriteField(k, v)
+	}
+	for name, path := range files {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		part, err := w.CreateFormFile(name, filepath.Base(path))
+		if err != nil {
+			return err
+		}
+		part.Write(data)
 	}
 	w.Close()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.base+"/sendPhoto", &buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.base+"/"+method, &buf)
 	if err != nil {
-		return message{}, err
+		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	var m message
-	return m, a.do(req, "sendPhoto", &m)
+	return a.do(req, method, out)
 }
 
 func (a api) sendText(ctx context.Context, chat int64, text string) error {
 	return a.call(ctx, "sendMessage", map[string]any{"chat_id": chat, "text": text}, nil)
+}
+
+// reply sends text as an answer to message to, quoting it.
+func (a api) reply(ctx context.Context, chat, to int64, text string) error {
+	return a.call(ctx, "sendMessage", map[string]any{"chat_id": chat, "text": text,
+		"reply_parameters": map[string]any{"message_id": to, "allow_sending_without_reply": true}}, nil)
 }
 
 // editCaption replaces a photo's caption and buttons; kb nil takes them away.

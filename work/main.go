@@ -1,3 +1,5 @@
+//go:build !signalbot
+
 // Command candle is a candlestick chart of Binance's spot markets.
 package main
 
