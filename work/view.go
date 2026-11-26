@@ -108,6 +108,9 @@ func (a *application) headline(c *ui.Context, t *ui.Theme, k palette) {
 		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			a.symIcon(c, a.symbol, 22)
 			ui.RichText(c, ui.Span{Text: base, Size: 16, Weight: 600}, ui.Span{Text: a.after(a.symbol), Size: 13, Color: t.TextMuted}).SingleLine().Shrink(0)
+			if tag := exchangeTag(a.symbol); tag != "" {
+				ui.Text(c, tag).FontSize(12).TextColor(t.TextMuted).Shrink(0).SingleLine()
+			}
 		})
 		q, hasQ := a.quotes[a.symbol]
 		last, ok := q.Last, hasQ
@@ -757,7 +760,11 @@ func (a *application) hitGroupHeading(c *ui.Context, t *ui.Theme, k palette, g h
 // hover, a button taking it off the watchlist.
 func (a *application) quoteRow(c *ui.Context, t *ui.Theme, k palette, sym string, q market.Ticker, hasQ, removable bool) (open, remove bool) {
 	base, _ := a.names(sym)
-	row := ui.Row(c.Key("row-"+sym)).FillWidth().Height(40).Shrink(0).Padding(0, 6, 0, 12).Gap(6).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(base + a.after(sym))
+	tag, label := exchangeTag(sym), base+a.after(sym)
+	if tag != "" {
+		label += "  " + tag
+	}
+	row := ui.Row(c.Key("row-"+sym)).FillWidth().Height(40).Shrink(0).Padding(0, 6, 0, 12).Gap(6).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(label)
 	hovered := row.Hovered()
 	switch {
 	case sym == a.symbol:
@@ -768,8 +775,18 @@ func (a *application) quoteRow(c *ui.Context, t *ui.Theme, k palette, sym string
 	row.Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(8).AlignItems(ui.Center).Children(func() {
 			a.symIcon(c, sym, 20)
-			ui.RichText(c, ui.Span{Text: base, Size: 13, Weight: 600}, ui.Span{Text: a.after(sym), Size: 11, Color: t.TextMuted}).
-				Grow(1).MinWidth(0).SingleLine()
+			name := func() {
+				ui.RichText(c, ui.Span{Text: base, Size: 13, Weight: 600}, ui.Span{Text: a.after(sym), Size: 11, Color: t.TextMuted}).
+					Grow(1).MinWidth(0).SingleLine()
+			}
+			if tag == "" {
+				name()
+				return
+			}
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() { // the exchange under the name, the name kept whole
+				name()
+				ui.Text(c, tag).FontSize(10).TextColor(t.TextMuted).SingleLine()
+			})
 		})
 		price, change, col := "—", "", t.TextMuted
 		if hasQ {

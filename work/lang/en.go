@@ -617,7 +617,7 @@ var en = map[string]string{
 	"连不上 GitHub，看看网络或系统代理": "Cannot reach GitHub: check the network or the system proxy",
 	"开发版":   "development build",
 	"版本 %s": "Version %s",
-	"照着 TradingView 做的 K 线图，行情来自 Binance 和 Yahoo。和 TradingView、Binance、Yahoo 都没有关系，也不构成任何投资建议": "A candlestick chart after TradingView's, with prices from Binance and Yahoo. Not affiliated with TradingView, Binance or Yahoo, and not investment advice",
+	"照着 TradingView 做的 K 线图，行情来自 Binance、Bybit、MEXC 和 Yahoo。和 TradingView、Binance、Bybit、MEXC、Yahoo 都没有关系，也不构成任何投资建议": "A candlestick chart after TradingView's, with prices from Binance, Bybit, MEXC and Yahoo. Not affiliated with TradingView, Binance, Bybit, MEXC or Yahoo, and not investment advice",
 	"这一份不能自己更新": "This copy cannot update itself",
 	"自己编译的，或者放在没有写入权限的地方（比如还在 dmg 里）。新版本到 GitHub 下载": "It was built from source, or sits where it may not write (still in the dmg, say). Download new versions from GitHub",
 	"打开下载页":   "Open the downloads page",
@@ -767,4 +767,7 @@ var en = map[string]string{
 	"%s 少了参数 source":                   "%s is missing the argument source",
 	"OpenBar 的 timestamp 不支持时区参数":      "OpenBar's timestamp does not support a time zone argument",
 	"%s 要一段文字":                         "%s takes text",
+
+	// Exchanges.
+	"%s 永续": "%s perpetual",
 }

@@ -226,7 +226,7 @@ func (a *application) openAbout() {
 func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 	u := &a.upd
 	section(c, t, "OpenBar")
-	infoRow(c, t, lang.F("版本 %s", appVersion()), lang.T("照着 TradingView 做的 K 线图，行情来自 Binance 和 Yahoo。和 TradingView、Binance、Yahoo 都没有关系，也不构成任何投资建议"), func() {
+	infoRow(c, t, lang.F("版本 %s", appVersion()), lang.T("照着 TradingView 做的 K 线图，行情来自 Binance、Bybit、MEXC 和 Yahoo。和 TradingView、Binance、Bybit、MEXC、Yahoo 都没有关系，也不构成任何投资建议"), func() {
 		ui.Link(c, "GitHub", "https://github.com/margbug01/OpenBar")
 	})
 	section(c, t, "更新")

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 )
 
 // Binance's public market-data mirror needs no key and, unlike api.binance.com,
@@ -239,11 +240,45 @@ func (b Binance) stream(ctx context.Context, path string, fn func([]byte) error)
 // streamFrom reads the WebSocket at u, handing each message to fn, until ctx
 // ends, the connection drops, it says nothing for a while or fn fails.
 func streamFrom(ctx context.Context, client *http.Client, u string, fn func([]byte) error) error {
+	return subscribe(ctx, client, u, nil, nil, fn)
+}
+
+// pingEvery is how often subscribe pings: Bybit and MEXC close a connection
+// that has not pinged for 30 seconds to a minute.
+const pingEvery = 15 * time.Second
+
+// subscribe is streamFrom for the exchanges whose streams are asked for on
+// the connection: it sends each of subs, as JSON, once the connection opens,
+// and ping, unless nil, every pingEvery.
+func subscribe(ctx context.Context, client *http.Client, u string, subs []any, ping any, fn func([]byte) error) error {
 	c, _, err := websocket.Dial(ctx, u, &websocket.DialOptions{HTTPClient: client})
 	if err != nil {
 		return err
 	}
 	defer c.CloseNow()
+	for _, s := range subs {
+		if err := wsjson.Write(ctx, c, s); err != nil {
+			return err
+		}
+	}
+	if ping != nil {
+		pctx, stop := context.WithCancel(ctx)
+		defer stop()
+		go func() {
+			t := time.NewTicker(pingEvery)
+			defer t.Stop()
+			for {
+				select {
+				case <-pctx.Done():
+					return
+				case <-t.C:
+					if wsjson.Write(pctx, c, ping) != nil {
+						return
+					}
+				}
+			}
+		}()
+	}
 	for {
 		rctx, cancel := context.WithTimeout(ctx, silence)
 		_, data, err := c.Read(rctx)

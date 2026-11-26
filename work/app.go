@@ -43,7 +43,6 @@ const (
 type application struct {
 	bin   market.Binance
 	yahoo market.Yahoo     // CME futures and US stocks
-	perp  market.Perp      // Binance's perpetuals
 	east  market.Eastmoney // the search by Chinese names
 	post  func(func())     // runs fn on the main thread
 	spawn func(func())     // starts background work; the tests drop it
@@ -71,6 +70,7 @@ type application struct {
 	allState   int             // 0 not asked, 1 loading, 2 loaded, 3 failed
 	perps      []market.Ticker // every perpetual, for the search
 	perpState  int             // as allState
+	others     []market.Ticker // the other exchanges' markets, for the search
 	funding    market.Funding  // the perpetual on the chart's, once in
 	fundingOf  string          // whose funding is in funding
 	searchKind string          // the search's section shown whole, "" for the first few of each
@@ -150,7 +150,7 @@ type application struct {
 
 func newApplication(set settings, file string, bin market.Binance, post func(func())) *application {
 	a := &application{
-		bin: bin, yahoo: market.Yahoo{HTTP: bin.HTTP}, perp: market.Perp{HTTP: bin.HTTP}, east: market.Eastmoney{HTTP: bin.HTTP}, post: post, file: file, set: set,
+		bin: bin, yahoo: market.Yahoo{HTTP: bin.HTTP}, east: market.Eastmoney{HTTP: bin.HTTP}, post: post, file: file, set: set,
 		usFound: map[string][]market.Instrument{}, usNames: map[string]string{}, priced: map[string]time.Time{}, dayOpens: map[string]dayOpen{},
 		zhFound: map[string][]market.Instrument{}, zhNames: map[string]string{},
 		usFetch: func(ctx context.Context) ([]byte, error) { return market.USList(ctx, bin.HTTP) },
@@ -189,6 +189,7 @@ func (a *application) start() {
 	a.watchQuotes()
 	a.loadAll()
 	a.loadPerps()
+	a.loadExchanges()
 	a.loadUS()
 	a.loadIcons(false)
 	a.spawn(a.syncClock)
@@ -239,9 +240,8 @@ func (a *application) open(sym, iv string) {
 	feed := a.barFeed(sym)
 	_, known := a.infos[sym]
 	a.spawn(func() { a.feed(ctx, f, feed, sym, iv, !known) })
-	if market.IsPerp(sym) {
-		perp := a.perp
-		a.spawn(func() { a.followFunding(ctx, f, perp, sym) })
+	if fu, ok := feed.(market.Funder); ok && market.IsPerp(sym) {
+		a.spawn(func() { a.followFunding(ctx, f, fu, sym) })
 	}
 }
 
@@ -257,7 +257,7 @@ func (a *application) park() {
 
 // followFunding asks for the perpetual's mark price and funding every half
 // minute while it is on a chart.
-func (a *application) followFunding(ctx context.Context, f *sharedFeed, perp market.Perp, sym string) {
+func (a *application) followFunding(ctx context.Context, f *sharedFeed, perp market.Funder, sym string) {
 	for {
 		got, err := perp.Funding(ctx, sym)
 		if err == nil {
@@ -485,7 +485,7 @@ func (a *application) foundFor(query string) *foundCache {
 	q := strings.TrimSpace(query)
 	f := &a.found
 	if !f.done || f.q != q || f.gen != a.searchGen {
-		pairs := append(slices.Clip(a.all), a.perps...)
+		pairs := slices.Concat(a.all, a.perps, a.others)
 		hits := searchAll(q, pairs, localMarkets, a.stocksFor(q), a.zhFound[q], math.MaxInt)
 		*f = foundCache{done: true, q: q, gen: a.searchGen, hits: hits, groups: groupHits(hits)}
 	}
@@ -749,18 +749,17 @@ var popularByID = func() map[string]market.Instrument {
 var localMarkets = append(slices.Clip(market.Futures), market.Indices...)
 
 // feedOf is where sym's bars come from: Yahoo for futures, US and Korean
-// stocks and the VIX, Eastmoney for A shares and Hong Kong's, Binance for
-// the rest.
+// stocks and the VIX, Eastmoney for A shares and Hong Kong's, its exchange
+// for a coin's.
 func (a *application) feedOf(sym string) market.Feed {
 	switch {
 	case market.IsYahoo(sym):
 		return a.yahoo
 	case market.IsEastmoney(sym):
 		return a.east
-	case market.IsPerp(sym):
-		return a.perp
 	}
-	return a.bin
+	ex, _ := market.ExchangeOf(sym)
+	return ex.Feed(a.bin.HTTP, sym)
 }
 
 // barFeed is where sym's bars come from, as the chart shows them: a
@@ -782,23 +781,32 @@ func (a *application) rth() bool {
 	return in.Future && a.set.FuturesRTH && a.intervalMs() < 86_400_000
 }
 
-// byFeed splits names by where they come from, keeping their order.
+// byFeed splits names by where they come from, keeping their order: each
+// exchange's pairs and perpetuals, then Yahoo's, then Eastmoney's.
 func byFeed(names []string) (groups [][]string) {
-	var bin, perp, yahoo, east []string
-	for _, n := range names {
+	source := func(n string) string {
 		switch {
 		case market.IsYahoo(n):
-			yahoo = append(yahoo, n)
+			return "yahoo"
 		case market.IsEastmoney(n):
-			east = append(east, n)
-		case market.IsPerp(n):
-			perp = append(perp, n)
-		default:
-			bin = append(bin, n)
+			return "east"
 		}
+		ex, _ := market.ExchangeOf(n)
+		if market.IsPerp(n) {
+			return ex.Name + ".P"
+		}
+		return ex.Name
 	}
-	for _, g := range [][]string{bin, perp, yahoo, east} {
-		if len(g) > 0 {
+	by := map[string][]string{}
+	for _, n := range names {
+		by[source(n)] = append(by[source(n)], n)
+	}
+	var order []string
+	for _, ex := range market.Exchanges {
+		order = append(order, ex.Name, ex.Name+".P")
+	}
+	for _, s := range append(order, "yahoo", "east") {
+		if g := by[s]; len(g) > 0 {
 			groups = append(groups, g)
 		}
 	}
@@ -835,7 +843,7 @@ func (a *application) loadPerps() {
 		return
 	}
 	a.perpState = 1
-	perp := a.perp
+	perp := market.Exchanges[0].Perp(a.bin.HTTP)
 	a.spawn(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
@@ -849,6 +857,29 @@ func (a *application) loadPerps() {
 			a.searchGen++
 		})
 	})
+}
+
+// loadExchanges fetches every market of the exchanges after Binance once,
+// for the search, each list as it comes; Binance's are loadAll's and
+// loadPerps'. A list that does not come is left out: from mainland China
+// they all take a proxy.
+func (a *application) loadExchanges() {
+	for _, ex := range market.Exchanges[1:] {
+		for _, feed := range []market.Crypto{ex.Spot(a.bin.HTTP), ex.Perp(a.bin.HTTP)} {
+			a.spawn(func() {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+				defer cancel()
+				all, err := feed.Tickers(ctx)
+				if err != nil {
+					return
+				}
+				a.post(func() {
+					a.others = append(a.others, all...)
+					a.searchGen++
+				})
+			})
+		}
+	}
 }
 
 // loadAll fetches every market once, for the search.
@@ -918,7 +949,7 @@ func (a *application) names(sym string) (base, quote string) {
 	if in, ok := market.InstrumentOf(sym); ok {
 		return in.Code, ""
 	}
-	return splitPair(strings.TrimSuffix(sym, ".P")) // a perpetual: as its pair
+	return splitPair(market.Code(sym)) // a perpetual: as its pair
 }
 
 // priceDecimals is how many decimals sym's prices show; sample stands in until
@@ -1025,11 +1056,14 @@ func (a *application) perpKind(sym string) string {
 func venue(sym string) string {
 	in, ok := market.InstrumentOf(sym)
 	where := lang.T(cmp.Or(in.Venue, "美股"))
+	ex, _ := market.ExchangeOf(sym)
 	switch {
+	case !ok && market.IsPerp(sym) && ex.Prefix != "":
+		return lang.F("%s 永续", ex.Name)
 	case !ok && market.IsPerp(sym):
 		return lang.T("币安永续")
 	case !ok:
-		return "Binance"
+		return ex.Name
 	case in.Future:
 		where = "CME"
 	}
@@ -1037,6 +1071,16 @@ func venue(sym string) string {
 		return lang.F("%s · 晚 %d 分钟", where, int(in.Delay.Minutes()))
 	}
 	return where
+}
+
+// exchangeTag is the exchange a coin's market is on, after its name in its
+// row and the top bar, when it is not Binance's, which one without a tag
+// is: "Bybit".
+func exchangeTag(sym string) string {
+	if ex, ok := market.ExchangeOf(sym); ok && ex.Prefix != "" {
+		return ex.Name
+	}
+	return ""
 }
 
 // lateWhat is what comes late, for the top bar's word on it.
