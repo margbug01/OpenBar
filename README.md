@@ -4,15 +4,15 @@
 
 # OpenBar
 
-A native Windows and macOS market charting app with Binance markets, CME futures, US stocks, technical indicators and drawing tools.
+A native Windows and macOS market charting app with Binance, Bybit and MEXC markets, CME futures, US stocks, technical indicators and drawing tools. Its interface is in English or Chinese.
 
 [官网 / Website](https://margbug01.github.io/OpenBar/) · [English](https://margbug01.github.io/OpenBar/en.html) · [下载 / Download](https://github.com/margbug01/OpenBar/releases/latest)
 
-一个照着 TradingView 做的 K 线图：Binance 现货和永续、CME 期货、美股。0.6.1 及以前叫 Candle
+一个照着 TradingView 做的 K 线图：Binance、Bybit、MEXC 的现货和永续，CME 期货、美股。0.6.1 及以前叫 Candle
 
 Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、十字光标、指标、画线、盈亏比，手感和 TradingView 对得上；一个 exe 或一个 app，不用账号，不用 API Key。
 
-![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011-23272e?style=flat-square&logo=windows&logoColor=white) ![macOS 12+](https://img.shields.io/badge/macOS-12%2B-23272e?style=flat-square&logo=apple&logoColor=white) ![Go 1.27](https://img.shields.io/badge/Go-1.27-23272e?style=flat-square&logo=go&logoColor=white) ![MyGo](https://img.shields.io/badge/UI-MyGo-26a69a?style=flat-square) ![Binance · Yahoo](https://img.shields.io/badge/数据-Binance%20·%20Yahoo-f0b90b?style=flat-square) ![MIT](https://img.shields.io/badge/license-MIT-26a69a?style=flat-square) [![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/candle)
+![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011-23272e?style=flat-square&logo=windows&logoColor=white) ![macOS 12+](https://img.shields.io/badge/macOS-12%2B-23272e?style=flat-square&logo=apple&logoColor=white) ![Go 1.27](https://img.shields.io/badge/Go-1.27-23272e?style=flat-square&logo=go&logoColor=white) ![MyGo](https://img.shields.io/badge/UI-MyGo-26a69a?style=flat-square) ![Binance · Bybit · MEXC · Yahoo](https://img.shields.io/badge/数据-Binance%20·%20Bybit%20·%20MEXC%20·%20Yahoo-f0b90b?style=flat-square) ![MIT](https://img.shields.io/badge/license-MIT-26a69a?style=flat-square) [![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/candle)
 
 <img src="docs/screenshots/hero.webp" width="900" alt="主图加 MA、成交量和 MACD，浅色和深色">
 
@@ -30,7 +30,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 **一个窗口看多个图表。** 顶栏的布局按钮里是 TradingView 的全部 41 种布局，2 到 8 个图表，左右、上下、一大几小、两行网格都有。每个图表有自己的品种、周期、缩放和指标；画线还是按交易对存，同一个交易对放在哪个图表都能看到同一组线。点一下哪个图表，它就是当前图表（蓝框）：顶栏、搜索、自选和快捷键都作用于它。图表之间的线可以拖（双击平分），右上角的按钮把一个图表放大到整个区域，再点一下还原。同步可以勾：十字线（默认开，其他图表在同一时间画竖线，同一个交易对连价格一起）、时间（拖动缩放一个，其他跟到同一时间）、品种、周期。两个图表看同一个交易对的同一周期时共用一条数据，不会重复请求；A 股、港股的请求排着队发，免得一下问太多被东方财富封。换成格子少的布局时，多出来的图表先藏起来（不再请求数据），换回来时还是原来的样子。
 
-**币、永续、期货、美股、A 股、港股放在一起。** 右栏一个搜索框，搜 Binance 现货的 1300 多个交易对、币安 U 本位永续合约（BTCUSDT.P 这种，连 NVDA、黄金这类 TradFi 永续）、CME 的纳指/标普/道指/罗素/黄金/原油期货（NQ、MNQ、ES、MES 这些，大小合约各是各的成交）、纽约上市的美股和 ETF、沪深 A 股、港股、韩股，还有上证指数、深证成指、创业板指、沪深300、科创50、恒生指数、恒生科技、国企指数和 VIX。A 股、港股打代码（600795、00700）或中文名就能搜到。代码、英文名、中文名都能搜：直接打汉字（闪迪、海力士、英伟达、比特币、黄金），或者拼音、首字母（`ywd` 英伟达、`pg` 苹果、`nz` 纳指）；开着输入法打字，还没选字时按拼音搜，选了字按汉字搜，打 sndk 这种代码也不用先按回车。美股的代码清单存在本机，结果马上出来，价格随后补上。结果按现货、永续、期货、美股、A 股、港股、韩股分组，最匹配的一组排前面，每组先列 4 个，「全部 ›」看一组全部；点一下就看、顺手加进自选。自选也按这几类分区，点标题折叠，拖动行和标题调顺序。币的行情实时跳，币和美股前面带着图标；永续的图例里有标记价和资金费率倒计时；期货晚 10 分钟，可以切 ETH（全时段）和 RTH（常规时段，见常见问题）。断线会自动重连并补齐漏掉的 K 线，往左拖到头会自动加载更早的历史。
+**币、永续、期货、美股、A 股、港股放在一起。** 右栏一个搜索框，搜 Binance 现货的 1300 多个交易对、币安 U 本位永续合约（BTCUSDT.P 这种，连 NVDA、黄金这类 TradFi 永续）、Bybit 和 MEXC 的现货与 USDT 永续（`BYBIT:BTCUSDT`、`MEXC:ETHUSDT.P` 这种，同一个交易对几家排在一起、币安在前，行里小字写着是哪家）、CME 的纳指/标普/道指/罗素/黄金/原油期货（NQ、MNQ、ES、MES 这些，大小合约各是各的成交）、纽约上市的美股和 ETF、沪深 A 股、港股、韩股，还有上证指数、深证成指、创业板指、沪深300、科创50、恒生指数、恒生科技、国企指数和 VIX。A 股、港股打代码（600795、00700）或中文名就能搜到。代码、英文名、中文名都能搜：直接打汉字（闪迪、海力士、英伟达、比特币、黄金），或者拼音、首字母（`ywd` 英伟达、`pg` 苹果、`nz` 纳指）；开着输入法打字，还没选字时按拼音搜，选了字按汉字搜，打 sndk 这种代码也不用先按回车。美股的代码清单存在本机，结果马上出来，价格随后补上。结果按现货、永续、期货、美股、A 股、港股、韩股分组，最匹配的一组排前面，每组先列 4 个，「全部 ›」看一组全部；点一下就看、顺手加进自选。自选也按这几类分区，点标题折叠，拖动行和标题调顺序。币的行情实时跳，币和美股前面带着图标；永续的图例里有标记价和资金费率倒计时；期货晚 10 分钟，可以切 ETH（全时段）和 RTH（常规时段，见常见问题）。断线会自动重连并补齐漏掉的 K 线，往左拖到头会自动加载更早的历史。
 
 **设置能调的都给你。** 五种图表类型、涨跌色（一键换绿涨红跌、红涨绿跌、白涨黑跌）、按前收盘价着色、标签颜色（白涨黑跌配白底也看得清）、时区、日期和时间格式、网格、每天一条的交易日分隔线、十字光标样式、水印、边距……改了立刻生效，点取消就还原。浅色、深色或跟随系统。
 
@@ -58,6 +58,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 
 - 币的行情来自 Binance 的公开行情服务 `data-api.binance.vision` 和 `data-stream.binance.vision`，不需要 API Key。
 - 永续合约来自币安合约的公开接口 `fapi.binance.com` 和 `fstream.binance.com`（同样不要 Key）。它没有国内能直连的镜像，在中国大陆要开代理；没开时搜不到永续，现货不受影响。OpenBar 里永续写作 `BTCUSDT.P`。
+- Bybit 的现货和 USDT 永续来自它的公开接口 v5（`api.bybit.com`、`stream.bybit.com`），MEXC 的现货来自 `api.mexc.com` 和 `wbs-api.mexc.com`（推送是 protobuf），永续来自 `contract.mexc.com`，都不要 Key。在中国大陆要开代理；连不上时搜不到这两家，币安不受影响。OpenBar 里照 TradingView 写作 `BYBIT:BTCUSDT`、`BYBIT:BTCUSDT.P`、`MEXC:BTCUSDT`、`MEXC:BTCUSDT.P`，币安的还是 `BTCUSDT`、`BTCUSDT.P`。币的图标按币种用币安的。
 - 期货和美股的行情来自 Yahoo Finance 网页自己用的接口（`query1/query2.finance.yahoo.com`），不是公开 API，Yahoo 随时可能改或限流。在中国大陆要开代理才连得上。OpenBar 里期货写作 `CME:NQ`、美股写作 `US:AAPL`，币还是 `BTCUSDT`。
 - 美股的代码清单来自 Nasdaq 每天发布的全部美股/ETF 列表（`www.nasdaqtrader.com`，约 1 MB，一周更新一次，存进下面说的缓存文件夹），搜美股不用再问 Yahoo；常用的 90 多只带了中文名。清单还没下好时，搜美股退回去问 Yahoo。
 - A 股（含指数）和港股的行情来自东方财富网站自己用的接口（K 线 `push2his.eastmoney.com`、报价 `push2.eastmoney.com`，不是公开 API），国内直连，A 股晚约 3 秒、港股几乎实时（Yahoo 上 A 股要晚 30 分钟、港股晚 15 分钟，所以没用 Yahoo）。分钟线东方财富只给最近一个半月左右（1 分钟线只有当天），日线、周线从上市那天起；价格是前复权的，和国内炒股软件一样。东方财富对问得太频繁的 IP 会封一阵（服务器直接断开），所以 OpenBar 只在交易时段每 5 秒问一次、休市每分钟一次，被拒了就先停 1 分钟再问，还不行就停得更久（最多 15 分钟），问通了恢复。小时线、4 小时线用 5 分钟线拼，和 TradingView 一样按开盘算起（港股 11:30 那根只有半小时）。OpenBar 里 A 股写作 `SSE:600795`（上交所）、`SZSE:000001`（深交所，平安银行；上证指数是 `SSE:000001`），港股 `HKEX:00700`，恒生指数 `HKEX:HSI`。
@@ -66,6 +67,7 @@ Go 写的原生 Windows / macOS 程序，不是网页套壳。拖动、缩放、
 - 美股的图标来自 Financial Modeling Prep 公开的 logo（`financialmodelingprep.com/image-stock/<代码>.png`，不要 key，国内直连），和币的图标一样只下载一次；没有 logo 的显示首字母。
 - 网络连不上 Binance 时，OpenBar 会走系统代理：Windows 上是「设置 › 网络和 Internet › 代理」，macOS 上是「系统设置 › 网络 › 代理」，Clash、v2rayN、Shoes 打开的就是它；也认 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量。
 - 币的图标来自 Binance 官网（`www.binance.com` 的资产列表和 `bin.bnbstatic.com` 上的图片），下载一次就存进缓存文件夹（Windows 上 `%LOCALAPPDATA%\OpenBar`，macOS 上 `~/Library/Caches/OpenBar`），以后打开不用再下；列表一周更新一次，遇到列表里没有的新币会马上再问一次。在中国大陆连 binance.com 要开代理，连不上时图标位置显示币名的首字母，行情不受影响。
+- 界面有简体中文和英文，默认跟系统语言走（系统语言里没有中文的是英文），「设置 › 版面 › 语言」可以改。英文里美股用自己的英文名，A 股、港股的名字还是中文；「关于」里的更新说明只有中文。
 - 自选、周期、指标、画线和图表设置都存在 `%APPDATA%\OpenBar\settings.json`（macOS 上是 `~/Library/Application Support/OpenBar/settings.json`），指标是所有交易对共用的，画线跟着交易对走。
 - 能自己更新：「设置 › 关于」里点「检查更新」，有新版本就点「更新并重启」，下载、校验签名、替换，再自己重新打开，通常只下载变了的部分。打开时和之后每 12 小时也会自动问一次 GitHub，有新版本时顶栏右边会提示，只提示不自己装，可以关掉。自己编译的、还在 dmg 里打开的不能自己更新。
 
@@ -164,7 +166,7 @@ VWAP、`timeframe.change("D")` 这类按「交易日」算的：加密货币按 
 
 ## 还没做的
 
-- 北交所、韩国 KOSDAQ 没有接；币安的交割合约（季度）和币本位合约没有接
+- 北交所、韩国 KOSDAQ 没有接；币安的交割合约（季度）和币本位合约没有接；Bybit、MEXC 只接了 USDT 永续，USDC 永续、交割和币本位合约没有接
 - A 股、港股的分钟线只能往前翻一个半月左右（东方财富只给这么多）
 - CME 期货是晚 10 分钟的；要实时得接券商（以后的事）
 - 警报、指标模板；多图布局只记当前一套，还不能存几套起名字切换
@@ -275,7 +277,8 @@ go run github.com/egoist/mygo/cmd/mygo@v0.6.4 build -skip-dmg
 app 的名字、bundle id 和版本在 `work/mygo.json`。没配开发者证书时是 ad-hoc 签名，本机直接能用；发给别人的话，对方第一次打开会被拦下，要到「系统设置 › 隐私与安全性」里点「仍要打开」。
 
 - 界面测试用 MyGo 的 `ui.Tester` 离屏渲染，真的去点按钮、拖图表；测试不联网。`CANDLE_SHOTS=<文件夹> go test` 会把画面存成 PNG。
-- `CANDLE_LIVE=1 go test -run TestLive .` 真连 Binance，跑一遍加载、实时推送、往前补页，并核对指标的增量计算和整段重算一致。
+- `CANDLE_LIVE=1 go test -run TestLive .` 真连 Binance，跑一遍加载、实时推送、往前补页，并核对指标的增量计算和整段重算一致。`CANDLE_LIVE=1 go test -run TestExchangesAppLive .` 和 `CANDLE_LIVE=1 go test -run TestExchangesLive ./market` 真连 Bybit、MEXC（国内要开代理）。
+- 界面文字写在代码里是中文，过 `lang.T` / `lang.F` 显示，英文在 `work/lang/en.go`。加了新文字漏写英文，`go test ./lang` 和 `TestEnglishShowsNoChinese`（英文下走一遍各个界面，不许出现汉字）会报出来。
 - README 的截图是假数据：`CANDLE_README=<文件夹> go test -run TestReadmeShots .`，再回到仓库根目录 `python tools/shots.py <文件夹> docs/screenshots`（要 Pillow）。
 - 图标的母版是 [docs/icon.svg](docs/icon.svg)。exe 的图标、版本和 manifest 在 `work/rsrc_windows_amd64.syso`，改了用 go-winres 重新生成：
 
@@ -321,11 +324,11 @@ go run tools/macicon.go docs/icon-macos.svg work/assets/icon-macos.png
 
 - [MyGo](https://github.com/egoist/mygo)：Go 的原生界面库，OpenBar 的界面全靠它
 - [coder/websocket](https://github.com/coder/websocket)：实时行情的 WebSocket
-- [Binance](https://developers.binance.com/docs/binance-spot-api-docs)：公开行情接口
+- [Binance](https://developers.binance.com/docs/binance-spot-api-docs)、[Bybit](https://bybit-exchange.github.io/docs/v5/intro)、[MEXC](https://mexcdevelop.github.io/apidocs/)：公开行情接口
 - [TradingView](https://www.tradingview.com/)：界面、交互和指标口径的参照
 - [MiSans](https://hyperos.mi.com/font/zh/)：小米的免费商用字体（不随 OpenBar 分发）
 
-OpenBar 是个人项目，和 TradingView、Binance 没有关系，也不构成任何投资建议。
+OpenBar 是个人项目，和 TradingView、Binance、Bybit、MEXC 没有关系，也不构成任何投资建议。
 
 ## 许可证
 
