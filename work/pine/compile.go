@@ -38,6 +38,7 @@ type cx struct {
 	simple bool   // the same on every bar: built of constants and inputs
 	source string // which bar value a series is, for input.source
 	id     int    // a plot's or level's index
+	arr    bool   // a kFloat that is an array's id
 }
 
 func numX(f func(m *Machine) float64) cx { return cx{k: kFloat, f: f} }
@@ -56,6 +57,7 @@ type variable struct {
 	k      vkind
 	slot   int // a float buffer's, or a string's
 	simple bool
+	arr    bool // holds an array's id
 	tok    token
 }
 
@@ -265,6 +267,8 @@ func (c *compiler) stmt(st stmt, sc *scope) (func(*Machine), error) {
 		return c.assign(st, sc)
 	case *forS:
 		return c.forStmt(st, sc)
+	case *forInS:
+		return c.forIn(st, sc)
 	case *whileS:
 		cond, err := c.expr(st.cond, sc)
 		if err != nil {
@@ -326,6 +330,15 @@ func (c *compiler) decl(st *declS, sc *scope) (func(*Machine), error) {
 	if st.typ == "string" && v.k == kFloat && v.konst && math.IsNaN(v.kv) {
 		v = strX("")
 	}
+	if elem, ok := strings.CutPrefix(st.typ, "array<"); ok {
+		if elem == "string>" {
+			return nil, errAt(st.t, "OpenBar 还不支持文字的数组")
+		}
+		if !v.arr && !isNaX(v) {
+			return nil, errAt(st.t, "%s 是数组，右边也要是数组", st.name)
+		}
+		v.arr = true
+	}
 	switch v.k {
 	case kTuple:
 		return nil, errAt(st.t, "右边有好几个值，要写成 [a, b] = …")
@@ -349,7 +362,10 @@ func (c *compiler) decl(st *declS, sc *scope) (func(*Machine), error) {
 		return func(m *Machine) { m.str[slot] = v.s(m) }, nil
 	}
 	slot := c.newBuf(st.mode != "")
-	sc.vars[st.name] = &variable{k: kFloat, slot: slot, simple: v.simple && st.mode == "", tok: st.t}
+	sc.vars[st.name] = &variable{k: kFloat, slot: slot, simple: v.simple && st.mode == "", arr: v.arr, tok: st.t}
+	if v.arr && st.mode != "" {
+		c.s.arrSlots = append(c.s.arrSlots, slot)
+	}
 	if st.mode != "" {
 		init := c.newBuf(true)
 		return func(m *Machine) {
@@ -397,6 +413,12 @@ func (c *compiler) assign(st *assignS, sc *scope) (func(*Machine), error) {
 	}
 	if v.k != kFloat {
 		return nil, errAt(st.t, "%s 是数值，右边也要是数值", st.name)
+	}
+	if vr.arr != v.arr && !isNaX(v) || vr.arr && st.op != ":=" {
+		if vr.arr {
+			return nil, errAt(st.t, "%s 是数组，只能用 := 换成另一个数组", st.name)
+		}
+		return nil, errAt(st.t, "%s 是数值，不能换成数组", st.name)
 	}
 	op := arith(st.op[:1])
 	if st.op == ":=" {
@@ -576,7 +598,7 @@ func (c *compiler) expr1(x expr, sc *scope) (cx, error) {
 				return b.s(m)
 			}}, nil
 		}
-		return cx{k: kFloat, simple: simple, f: func(m *Machine) float64 {
+		return cx{k: kFloat, simple: simple, arr: a.arr || b.arr, f: func(m *Machine) float64 {
 			if truth(cond.f(m)) {
 				return a.f(m)
 			}
@@ -592,14 +614,15 @@ func (c *compiler) expr1(x expr, sc *scope) (cx, error) {
 	return cx{}, errAt(x.at(), "看不懂这里")
 }
 
+func isNaX(v cx) bool { return v.k == kFloat && v.konst && math.IsNaN(v.kv) }
+
 // unify makes a and b the same kind, na taking the other's.
 func unify(a, b cx, t token) (cx, cx, error) {
-	isNa := func(v cx) bool { return v.k == kFloat && v.konst && math.IsNaN(v.kv) }
 	switch {
 	case a.k == b.k:
-	case a.k == kStr && isNa(b):
+	case a.k == kStr && isNaX(b):
 		b = strX("")
-	case b.k == kStr && isNa(a):
+	case b.k == kStr && isNaX(a):
 		a = strX("")
 	default:
 		return a, b, errAt(t, "两边的值不是一类（一边是文字，一边是数值）")
@@ -795,13 +818,17 @@ func branches(t token, conds []cx, blocks [][]func(*Machine), vals []cx, els []f
 			return v.tu(m)
 		}}, nil
 	}
-	return numX(func(m *Machine) float64 {
+	out := numX(func(m *Machine) float64 {
 		v := at(pick(m))
 		if v.f == nil {
 			return math.NaN()
 		}
 		return v.f(m)
-	}), nil
+	})
+	for _, v := range all {
+		out.arr = out.arr || v.arr
+	}
+	return out, nil
 }
 
 func (c *compiler) switchExpr(x *switchX, sc *scope) (cx, error) {
@@ -879,13 +906,15 @@ func (c *compiler) index(x *indexX, sc *scope) (cx, error) {
 			return m.buf[buf][m.i-k]
 		}
 	}
-	return numX(func(m *Machine) float64 {
+	out := numX(func(m *Machine) float64 {
 		k := off.f(m)
 		if math.IsNaN(k) || k < 0 {
 			return math.NaN()
 		}
 		return hist(m, int(k))
-	}), nil
+	})
+	out.arr = base.arr
+	return out, nil
 }
 
 // bufHist is the history of a buffer.
@@ -908,7 +937,7 @@ func (c *compiler) name(t token, sc *scope) (cx, error) {
 			return cx{k: v.k, id: v.slot}, nil
 		}
 		slot := v.slot
-		return cx{k: kFloat, simple: v.simple, f: func(m *Machine) float64 { return m.buf[slot][m.i] }, hist: bufHist(slot)}, nil
+		return cx{k: kFloat, simple: v.simple, arr: v.arr, f: func(m *Machine) float64 { return m.buf[slot][m.i] }, hist: bufHist(slot)}, nil
 	}
 	if b, ok := builtinVars[t.text]; ok {
 		return b(c), nil
@@ -937,10 +966,18 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 	if f, ok := c.funcs[x.fn]; ok {
 		return c.inline(f, x, sc)
 	}
-	if head, _, ok := strings.Cut(x.fn, "."); ok && sc.find(head) != nil { // a method of a label, a line…
-		return naX, nil
+	if head, name, ok := strings.Cut(x.fn, "."); ok {
+		if v := sc.find(head); v != nil && v.arr { // a.push(x) is array.push(a, x)
+			recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
+			if err != nil {
+				return cx{}, err
+			}
+			return c.arrayCall(name, &recv, x, sc)
+		} else if v != nil { // a method of a label, a line…
+			return naX, nil
+		}
 	}
-	ns, _, _ := strings.Cut(x.fn, ".")
+	ns, name, _ := strings.Cut(x.fn, ".")
 	switch ns {
 	case "label", "line", "box", "table", "polyline", "linefill", "chart":
 		c.warn(x.t, "OpenBar 不画 label、line、box、table，%s 会被跳过", x.fn)
@@ -949,8 +986,10 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 		return cx{}, errAt(x.t, "OpenBar 拿不到别的品种或周期的数据（%s）", x.fn)
 	case "strategy":
 		return cx{}, errAt(x.t, "这是策略脚本里的 %s，OpenBar 只跑指标", x.fn)
-	case "array", "matrix", "map":
-		return cx{}, errAt(x.t, "OpenBar 不支持 %s（数组、矩阵、map）", x.fn)
+	case "array":
+		return c.arrayCall(name, nil, x, sc)
+	case "matrix", "map":
+		return cx{}, errAt(x.t, "OpenBar 不支持 %s（矩阵、map）", x.fn)
 	case "log", "runtime":
 		return naX, nil
 	}
@@ -1105,7 +1144,7 @@ func (c *compiler) inline(f *funcS, x *callX, sc *scope) (cx, error) {
 			inner.vars[params[i]] = &variable{k: kStr, slot: binds[i].slot, simple: a.simple}
 		case kFloat:
 			binds[i] = bind{a, c.newBuf(false)}
-			inner.vars[params[i]] = &variable{k: kFloat, slot: binds[i].slot, simple: a.simple}
+			inner.vars[params[i]] = &variable{k: kFloat, slot: binds[i].slot, simple: a.simple, arr: a.arr}
 		default:
 			return cx{}, errAt(a.tok, "这个参数要是数值或文字")
 		}
@@ -1134,7 +1173,9 @@ func (c *compiler) inline(f *funcS, x *callX, sc *scope) (cx, error) {
 	case kTuple:
 		return cx{k: kTuple, n: v.n, tu: func(m *Machine) []float64 { setup(m); return v.tu(m) }}, nil
 	case kFloat:
-		return numX(func(m *Machine) float64 { setup(m); return v.f(m) }), nil
+		out := numX(func(m *Machine) float64 { setup(m); return v.f(m) })
+		out.arr = v.arr
+		return out, nil
 	}
 	return cx{k: kVoid, f: func(m *Machine) float64 { setup(m); return math.NaN() }}, nil
 }

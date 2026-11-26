@@ -26,6 +26,7 @@ const readme = `<!-- ` + readmeVersion + ` -->
 - 声明：indicator(title, shorttitle, overlay, format, precision)。study() 也认。
 - 输入（会出现在指标设置里，用户能改）：input.int、input.float（minval、maxval、step、options）、input.bool、input.source、input.string（带 options 是下拉框）、input.color，以及 input()。
 - 语法：变量、var / varip、:= 和 += -= *= /=、if / else if / else、for i = a to b by s、while、break / continue、switch（有值和无值两种）、if 和 switch 当表达式用、三元 ?:、历史引用 x[n]、自定义函数（单行和多行，可以返回 [a, b]）、[a, b] = f() 解构、类型写法（float x = na）。
+- 数组：var array<float> a = array.new<float>()（也认 float[] a、array.new_float、array.from），a.push(x) 这样的方法写法，for x in a 和 for [i, x] in a；函数有 new_* from size get set push pop shift unshift insert remove clear first last indexof lastindexof includes min max sum avg median stdev variance range sort reverse fill copy concat，下标可以是负数（从尾数）。元素可以是数、颜色、真假，不能是文字。
 - 数据：open high low close volume hl2 hlc3 ohlc4 hlcc4 time time_close bar_index last_bar_index，barstate.*、syminfo.mintick / ticker、timeframe.period / isintraday / isdaily…、timeframe.change("D")、time("D")、year month dayofmonth dayofweek hour minute（按交易所时区：加密货币是 UTC，美股纽约，期货芝加哥）。
 - ta：sma ema rma wma vwma hma alma swma linreg stdev variance dev median percentrank highest lowest highestbars lowestbars range change mom roc rsi cci stoch mfi cmo tsi wpr tr atr bb bbw kc kcw macd dmi sar supertrend vwap obv accdist cum max min cross crossover crossunder rising falling barssince valuewhen pivothigh pivotlow correlation nvi pvi。
 - math：abs max min avg sum sqrt pow exp log log10 round floor ceil sign sin cos tan asin acos atan todegrees toradians round_to_mintick pi e。
@@ -35,7 +36,7 @@ const readme = `<!-- ` + readmeVersion + ` -->
 ## 不支持什么
 
 - request.security 这类拿别的品种、别的周期的数据：会报错。
-- strategy（策略回测）、library、import、type、method、array / matrix / map：会报错。
+- strategy（策略回测）、library、import、type、method、matrix / map、文字的数组（array<string>）：会报错。
 - label、line、box、table、polyline：不报错，但会跳过不画（warnings 里会写）。
 - plotcandle、plotbar、barcolor、alertcondition：跳过。
 

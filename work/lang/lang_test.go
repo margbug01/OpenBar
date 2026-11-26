@@ -17,7 +17,7 @@ import (
 // says are the functions that say an argument in the language shown, by its
 // index: T and F, and the helpers that hand theirs to T.
 var says = map[string][]int{
-	"T": {0}, "F": {0}, "errAt": {1}, "warn": {1},
+	"T": {0}, "F": {0}, "errAt": {1}, "warn": {1}, "runErr": {0},
 	"row": {1}, "checkRow": {2}, "section": {2}, "triCheck": {2}, "boolCheck": {2},
 	"dialogHeader": {3, 4}, "dropdown": {1}, "intChoice": {1}, "well": {1},
 	"legendButton": {4}, "toolButton": {4}, "barButton": {4, 5}, "cornerButton": {2, 3},
@@ -59,7 +59,7 @@ func TestEnglishForEveryText(t *testing.T) {
 					return true
 				}
 			}
-			format := name == "F" || name == "errAt" || name == "warn"
+			format := name == "F" || name == "errAt" || name == "warn" || name == "runErr"
 			for _, i := range says[name] {
 				if i >= len(call.Args) {
 					continue

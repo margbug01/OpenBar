@@ -113,6 +113,12 @@ type (
 		from, to, by expr
 		body         []stmt
 	}
+	forInS struct { // for x in a, for [i, x] in a
+		t      token
+		idx, v string
+		arr    expr
+		body   []stmt
+	}
 	whileS struct {
 		t    token
 		cond expr
@@ -328,8 +334,10 @@ func (p *parser) stmt(level int) (stmt, error) {
 	for p.peek().kind == tkIdent && typeWords[p.peek().text] && p.peekAt(1).kind == tkIdent {
 		typ = p.next().text
 	}
-	if p.peek().kind == tkIdent && strings.HasPrefix(p.peek().text, "array") && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "<" {
-		return nil, errAt(p.peek(), "OpenBar 不支持 array")
+	if elem, ok, err := p.arrayType(); err != nil {
+		return nil, err
+	} else if ok {
+		typ = "array<" + elem + ">"
 	}
 	if p.peek().kind == tkIdent && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "=" {
 		name := p.next()
@@ -471,15 +479,44 @@ func (p *parser) blockExpr(level int) (expr, error) {
 
 func (p *parser) forStmt(level int) (stmt, error) {
 	t := p.next()
-	if p.isOp("[") {
-		return nil, errAt(p.peek(), "OpenBar 不支持 for … in（数组）")
+	idx := ""
+	if p.isOp("[") { // for [i, x] in a
+		p.next()
+		it := p.next()
+		if it.kind != tkIdent {
+			return nil, errAt(it, "for 后面应该是循环变量的名字")
+		}
+		idx = it.text
+		if _, err := p.expect(","); err != nil {
+			return nil, err
+		}
 	}
 	v := p.next()
 	if v.kind != tkIdent {
 		return nil, errAt(v, "for 后面应该是循环变量的名字")
 	}
-	if p.isWord("in") {
-		return nil, errAt(p.peek(), "OpenBar 不支持 for … in（数组）")
+	if idx != "" {
+		if _, err := p.expect("]"); err != nil {
+			return nil, err
+		}
+	}
+	if idx != "" || p.isWord("in") {
+		if !p.isWord("in") {
+			return nil, errAt(p.peek(), "这里少了 %s", "in")
+		}
+		p.next()
+		arr, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.lineDone(); err != nil {
+			return nil, err
+		}
+		body, err := p.indented(level, t)
+		if err != nil {
+			return nil, err
+		}
+		return &forInS{t: t, idx: idx, v: v.text, arr: arr, body: body}, nil
 	}
 	if _, err := p.expect("="); err != nil {
 		return nil, err
@@ -543,6 +580,9 @@ func (p *parser) funcDef(level int) (stmt, error) {
 		for p.peek().kind == tkIdent && typeWords[p.peek().text] && p.peekAt(1).kind == tkIdent {
 			p.next()
 		}
+		if _, _, err := p.arrayType(); err != nil {
+			return nil, err
+		}
 		pt := p.next()
 		if pt.kind != tkIdent {
 			return nil, errAt(pt, "函数的参数应该是名字")
@@ -579,6 +619,31 @@ func (p *parser) funcDef(level int) (stmt, error) {
 	}
 	f.body = []stmt{&exprS{x}}
 	return f, nil
+}
+
+// arrayType reads an array's type before a name, array<int> or int[], and
+// gives its elements' type.
+func (p *parser) arrayType() (string, bool, error) {
+	t := p.peek()
+	if t.kind != tkIdent {
+		return "", false, nil
+	}
+	if t.text == "array" && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "<" {
+		p.next()
+		p.next()
+		elem := p.next()
+		if _, err := p.expect(">"); err != nil {
+			return "", false, err
+		}
+		return elem.text, true, nil
+	}
+	if p.peekAt(1).kind == tkOp && p.peekAt(1).text == "[" && p.peekAt(2).kind == tkOp && p.peekAt(2).text == "]" && p.peekAt(3).kind == tkIdent {
+		p.next()
+		p.next()
+		p.next()
+		return t.text, true, nil
+	}
+	return "", false, nil
 }
 
 // isTupleDecl reports whether the line is [a, b] = …
@@ -730,8 +795,15 @@ func (p *parser) primary() (expr, error) {
 		case "and", "or", "not", "if", "else", "for", "to", "by", "while", "switch", "var", "varip":
 			return nil, errAt(t, "这里不该出现 %s", t.text)
 		}
-		if strings.HasPrefix(t.text, "array.") || strings.HasPrefix(t.text, "matrix.") || strings.HasPrefix(t.text, "map.") {
-			return nil, errAt(t, "OpenBar 不支持 %s（数组、矩阵、map）", t.text)
+		if strings.HasPrefix(t.text, "matrix.") || strings.HasPrefix(t.text, "map.") {
+			return nil, errAt(t, "OpenBar 不支持 %s（矩阵、map）", t.text)
+		}
+		if t.text == "array.new" && p.isOp("<") { // array.new<int>(…) is array.new_int(…)
+			p.next()
+			t.text = "array.new_" + p.next().text
+			if _, err := p.expect(">"); err != nil {
+				return nil, err
+			}
 		}
 		if !p.isOp("(") {
 			return &nameRef{t}, nil

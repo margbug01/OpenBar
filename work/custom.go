@@ -395,7 +395,7 @@ func (a *application) writeStatus() {
 	}
 }
 
-const readmeVersion = "openbar-indicators-readme 1"
+const readmeVersion = "openbar-indicators-readme 2"
 
 // writeReadme puts the folder's README there in the language shown, or a
 // newer one, or one in the other language, over what is there. Its first

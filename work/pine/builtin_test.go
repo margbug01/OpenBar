@@ -59,35 +59,43 @@ func TestShippedIndicatorsRun(t *testing.T) {
 // comes, gives what running every bar from the start does.
 func TestIncrementalRunsMatchFullOnes(t *testing.T) {
 	files, _ := filepath.Glob("../indicators/*.pine")
-	all := testBars(260)
-	env := Env{IntervalMs: 3_600_000, Period: "60", DayOf: func(t int64) int64 { return t / 86_400_000 }}
 	for _, f := range files {
 		src, _ := os.ReadFile(f)
-		s, err := Compile(string(src))
-		if err != nil {
-			t.Fatal(err)
+		checkIncremental(t, f, string(src))
+	}
+}
+
+func checkIncremental(t *testing.T, name, src string) {
+	t.Helper()
+	all := testBars(260)
+	env := Env{IntervalMs: 3_600_000, Period: "60", DayOf: func(t int64) int64 { return t / 86_400_000 }}
+	s, err := Compile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m *Machine
+	for n := 200; n <= len(all); n++ {
+		// The newest bar first arrives half formed, then complete.
+		partial := append([]market.Bar(nil), all[:n]...)
+		last := &partial[n-1]
+		last.C = (last.O + last.C) / 2
+		last.H, last.L = math.Max(last.O, last.C)*1.001, math.Min(last.O, last.C)*0.999
+		from := 0
+		if m != nil {
+			from = n - 2 // the bar before was half formed: it is run again
 		}
-		var m *Machine
-		for n := 200; n <= len(all); n++ {
-			// The newest bar first arrives half formed, then complete.
-			partial := append([]market.Bar(nil), all[:n]...)
-			last := &partial[n-1]
-			last.C = (last.O + last.C) / 2
-			last.H, last.L = math.Max(last.O, last.C)*1.001, math.Min(last.O, last.C)*0.999
-			from := 0
-			if m != nil {
-				from = n - 2 // the bar before was half formed: it is run again
-			}
-			m = s.Run(m, partial, nil, from, env)
-			m = s.Run(m, all[:n], nil, n-1, env)
-		}
-		full := s.Run(nil, all, nil, 0, env)
-		for j := range s.Plots {
-			for i := range all {
-				a, b := m.Plots[j][i], full.Plots[j][i]
-				if !(a == b || math.IsNaN(a) && math.IsNaN(b)) {
-					t.Fatalf("%s: %s bar %d: %v run bar by bar, %v at once", f, s.Plots[j].Title, i, a, b)
-				}
+		m = s.Run(m, partial, nil, from, env)
+		m = s.Run(m, all[:n], nil, n-1, env)
+	}
+	full := s.Run(nil, all, nil, 0, env)
+	if m.Err != nil || full.Err != nil {
+		t.Fatalf("%s: %v, %v", name, m.Err, full.Err)
+	}
+	for j := range s.Plots {
+		for i := range all {
+			a, b := m.Plots[j][i], full.Plots[j][i]
+			if !(a == b || math.IsNaN(a) && math.IsNaN(b)) {
+				t.Fatalf("%s: %s bar %d: %v run bar by bar, %v at once", name, s.Plots[j].Title, i, a, b)
 			}
 		}
 	}
