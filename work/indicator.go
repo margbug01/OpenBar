@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 	"candle/pine"
 )
@@ -144,7 +145,7 @@ var indKinds = []indKind{
 		levels: []float64{80, 20}, calc: calcKDJ},
 	{key: "vol", short: "VOL", name: "成交量", alias: "Volume", pane: true, decimals: -2, category: "成交量",
 		params: []paramDef{pnum("均线周期", 20, 0, 500, 1)},
-		plots:  []plotDef{{name: "成交量", color: barUp, down: barDown, style: plotVolume}, line("均线", "#2962ff")}, calc: calcVOL},
+		plots:  []plotDef{{name: "成交量", color: barUp, down: barDown, style: plotVolume}, line("均线|线", "#2962ff")}, calc: calcVOL},
 }
 
 // lineColors take turns among the instances of a one-line kind.
@@ -300,17 +301,17 @@ func (ind *indicator) paramText() string {
 			case paramBool, paramColor, paramFixed:
 				continue // as TradingView's legend: the numbers and the choices
 			case paramChoice:
-				parts = append(parts, labelOf(pd.opts, strconv.Itoa(int(p))))
+				parts = append(parts, lang.T(labelOf(pd.opts, strconv.Itoa(int(p)))))
 				continue
 			}
 		}
 		parts = append(parts, strconv.FormatFloat(p, 'f', -1, 64))
 	}
 	if ind.Source != "" {
-		parts = append(parts, labelOf(sources, ind.Source))
+		parts = append(parts, lang.T(labelOf(sources, ind.Source)))
 	}
 	if ind.Offset != 0 {
-		parts = append(parts, "偏移 "+strconv.FormatFloat(ind.Offset, 'f', -1, 64))
+		parts = append(parts, lang.F("偏移 %s", strconv.FormatFloat(ind.Offset, 'f', -1, 64)))
 	}
 	return strings.Join(parts, " ")
 }

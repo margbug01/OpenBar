@@ -8,6 +8,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // style is how the chart looks, as the settings dialog sets it. The empty
@@ -191,13 +193,21 @@ func (st style) breakLoc() *time.Location {
 
 var weekdays = [...]string{"日", "一", "二", "三", "四", "五", "六"}
 
+// weekday is t's day of the week, short: 周一, Mon.
+func weekday(t time.Time) string {
+	if lang.English() {
+		return t.Weekday().String()[:3]
+	}
+	return "周" + weekdays[t.Weekday()]
+}
+
 // crossTime is the full time of a bar ivMs long opening at ms, as the
 // crosshair's label shows it.
 func (st style) crossTime(ms, ivMs int64) string {
 	t := time.UnixMilli(ms).In(st.loc())
 	s := t.Format(st.DateFormat)
 	if st.Weekday {
-		s = "周" + weekdays[t.Weekday()] + " " + s
+		s = weekday(t) + " " + s
 	}
 	if ivMs < 86_400_000 {
 		s += " " + clockText(t, st.Clock12)
@@ -206,10 +216,12 @@ func (st style) crossTime(ms, ivMs int64) string {
 }
 
 func clockText(t time.Time, twelve bool) string {
-	if !twelve {
+	switch {
+	case !twelve:
 		return t.Format("15:04")
-	}
-	if t.Hour() < 12 {
+	case lang.English():
+		return t.Format("3:04 PM")
+	case t.Hour() < 12:
 		return "上午" + t.Format("3:04")
 	}
 	return "下午" + t.Format("3:04")

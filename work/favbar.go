@@ -4,6 +4,8 @@ import (
 	"slices"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // The bar of favorite drawing tools, after TradingView's: the tools starred
@@ -97,10 +99,10 @@ func (a *application) favBar(c *ui.Context, t *ui.Theme, k palette) {
 	}
 	x, y := a.favAt()
 	bar := ui.Row(c.Key("fav-bar")).Absolute().Left(x).Top(y).Height(favButton+8).Padding(0, 4).Gap(2).AlignItems(ui.Center).
-		Radius(7).Background(k.field).Border(1, k.line).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.22)).Label("常用工具栏")
+		Radius(7).Background(k.field).Border(1, k.line).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.22)).Label(lang.T("常用工具栏"))
 	bar.Children(func() {
 		grip := ui.Box(c.Key("fav-grip")).Width(favGrip).Height(favButton).Center().Radius(4).Cursor(ui.CursorGrab).
-			Label("拖动常用工具栏").Tooltip("按住拖动")
+			Label(lang.T("拖动常用工具栏")).Tooltip(lang.T("按住拖动"))
 		if grip.Hovered() || grip.Dragging() {
 			grip.Background(k.hover)
 		}
@@ -118,7 +120,7 @@ func (a *application) favBar(c *ui.Context, t *ui.Theme, k palette) {
 				continue
 			}
 			b := ui.ButtonBase(c.Key("fav-"+kind)).Size(favButton, favButton).Shrink(0).Center().Radius(5).Cursor(ui.CursorPointer).
-				Label("常用 " + tl.label).Tooltip(tl.label)
+				Label(lang.F("常用 %s", lang.T(tl.label))).Tooltip(lang.T(tl.label))
 			col := t.Text
 			switch {
 			case a.tool == kind:
@@ -129,7 +131,7 @@ func (a *application) favBar(c *ui.Context, t *ui.Theme, k palette) {
 			}
 			b.Children(func() { ui.Icon(c, tl.icon).Size(21, 21).TextColor(col) })
 			b.ContextMenu(func(m *ui.Menu) {
-				if m.Item("从常用工具栏移除").Chosen() {
+				if m.Item(lang.T("从常用工具栏移除")).Chosen() {
 					a.later = append(a.later, func() { a.toggleFav(kind) })
 				}
 			})
@@ -146,9 +148,9 @@ func (a *application) toolWithStar(c *ui.Context, t *ui.Theme, k palette, tl dra
 	ui.Box(c.Key("tool-wrap-"+tl.kind)).Size(toolBtn, toolBtn).Shrink(0).Children(func() {
 		b := toolButton(c, t, k, "tool-"+tl.kind, tl.label, tl.icon, a.tool == tl.kind)
 		fav := a.isFav(tl.kind)
-		label, icon, col := "加入常用工具栏", starIcon, t.TextMuted
+		label, icon, col := lang.T("加入常用工具栏"), starIcon, t.TextMuted
 		if fav {
-			label, icon, col = "从常用工具栏移除", starFillIcon, ui.Hex("#f0b90b")
+			label, icon, col = lang.T("从常用工具栏移除"), starFillIcon, ui.Hex("#f0b90b")
 		}
 		b.ContextMenu(func(m *ui.Menu) {
 			if m.Item(label).Chosen() {

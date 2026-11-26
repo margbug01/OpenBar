@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -133,7 +134,7 @@ func (a *application) headline(c *ui.Context, t *ui.Theme, k palette) {
 
 func (a *application) intervalButton(c *ui.Context, t *ui.Theme, k palette, iv interval) {
 	chosen := iv.key == a.interval
-	b := ui.ButtonBase(c.Key("iv-" + iv.key)).Height(28).PaddingX(10).Center().Radius(4).Cursor(ui.CursorPointer).Label(iv.label)
+	b := ui.ButtonBase(c.Key("iv-" + iv.key)).Height(28).PaddingX(10).Center().Radius(4).Cursor(ui.CursorPointer).Label(lang.T(iv.label))
 	switch {
 	case chosen:
 		b.Background(k.chosen)
@@ -146,9 +147,9 @@ func (a *application) intervalButton(c *ui.Context, t *ui.Theme, k palette, iv i
 	}
 	// A width of its own: restyled, a label is laid out again in the width the
 	// last frame left it, which can come out a hair short, and 5分 wrapped.
-	w, _ := c.MeasureText(0, ui.Span{Text: iv.label, Size: 13, Weight: 500})
+	w, _ := c.MeasureText(0, ui.Span{Text: lang.T(iv.label), Size: 13, Weight: 500})
 	b.Children(func() {
-		ui.Text(c, iv.label).FontSize(13).FontWeight(500).TextColor(col).SingleLine().Width(float32(math.Ceil(float64(w))) + 1)
+		ui.Text(c, lang.T(iv.label)).FontSize(13).FontWeight(500).TextColor(col).SingleLine().Width(float32(math.Ceil(float64(w))) + 1)
 	})
 	if b.Clicked() && !chosen {
 		a.openSynced(a.symbol, iv.key)
@@ -169,13 +170,13 @@ func (a *application) sessionButtons(c *ui.Context, t *ui.Theme, k palette) {
 			label, tip string
 			rth        bool
 		}{
-			{"ETH", "全时段：CME 电子盘整个交易时段，纽约时间 18:00 到第二天 17:00", false},
-			{"RTH", "常规时段：纽约时间 9:30–16:15（你这里 " + local + "），和 TradingView 的 RTH 一样", true},
+			{"ETH", lang.T("全时段：CME 电子盘整个交易时段，纽约时间 18:00 到第二天 17:00"), false},
+			{"RTH", lang.F("常规时段：纽约时间 9:30–16:15（你这里 %s），和 TradingView 的 RTH 一样", local), true},
 		} {
 			chosen := a.set.FuturesRTH == o.rth
 			b := ui.ButtonBase(c.Key("session-" + o.label)).Height(28).PaddingX(8).Center().Radius(4).Label(o.label)
 			if daily {
-				b.Disabled(true).Tooltip("日线和周线不分时段，两种都一样")
+				b.Disabled(true).Tooltip(lang.T("日线和周线不分时段，两种都一样"))
 			} else {
 				b.Cursor(ui.CursorPointer).Tooltip(o.tip)
 			}
@@ -203,23 +204,23 @@ func (a *application) sessionButtons(c *ui.Context, t *ui.Theme, k palette) {
 }
 
 func (a *application) status(c *ui.Context, t *ui.Theme, k palette) {
-	text, col := "连接中", k.muted
+	text, col := lang.T("连接中"), k.muted
 	switch {
 	case a.err != "":
-		text, col = "加载失败", k.down
+		text, col = lang.T("加载失败"), k.down
 	case a.stream == live && a.delay() > 0:
-		text, col = fmt.Sprintf("晚 %d 分", int(a.delay().Minutes())), k.amber
+		text, col = lang.F("晚 %d 分", int(a.delay().Minutes())), k.amber
 	case a.stream == live:
-		text, col = "实时", paletteFor(t.Dark).up // green whichever way the bars are colored
+		text, col = lang.T("实时"), paletteFor(t.Dark).up // green whichever way the bars are colored
 	case a.stream == reconnecting:
-		text, col = "重连中", k.amber
+		text, col = lang.T("重连中"), k.amber
 	}
 	row := ui.Row(c).Width(84).Shrink(0).Gap(6).AlignItems(ui.Center).Justify(ui.End).Padding(0, 14, 0, 0).Children(func() {
 		ui.Box(c).Size(7, 7).Radius(3.5).Background(col)
 		ui.Text(c, text).FontSize(12).TextColor(t.TextMuted).SingleLine()
 	})
 	if d := a.delay(); d > 0 {
-		row.Tooltip(fmt.Sprintf("%s的行情免费的都晚 %d 分钟：价格是交易所的真实成交，只是晚到", lateWhat(a.symbol), int(d.Minutes())))
+		row.Tooltip(lang.F("%s的行情免费的都晚 %d 分钟：价格是交易所的真实成交，只是晚到", lateWhat(a.symbol), int(d.Minutes())))
 	}
 }
 
@@ -303,16 +304,16 @@ func (a *application) chart(c *ui.Context, t *ui.Theme, k palette) {
 	switch {
 	case len(a.bars) == 0 && a.err != "":
 		overlay(c).Children(func() {
-			ui.Text(c, "K 线没加载上").FontSize(15).FontWeight(600)
+			ui.Text(c, lang.T("K 线没加载上")).FontSize(15).FontWeight(600)
 			ui.Text(c, a.err).FontSize(12).TextColor(t.TextMuted).MaxWidth(520).TextAlign(ui.Center)
-			if ui.Button(c, "重试").Clicked() {
+			if ui.Button(c, lang.T("重试")).Clicked() {
 				a.open(a.symbol, a.interval)
 			}
 		})
 	case len(a.bars) == 0:
 		base, _ := a.names(a.symbol)
 		overlay(c).Children(func() {
-			ui.Text(c, "正在加载 "+base+a.after(a.symbol)+" …").FontSize(13).TextColor(t.TextMuted)
+			ui.Text(c, lang.F("正在加载 %s …", base+a.after(a.symbol))).FontSize(13).TextColor(t.TextMuted)
 		})
 	case a.view.offset < -1:
 		a.latestButton(c, k)
@@ -323,7 +324,7 @@ func (a *application) chart(c *ui.Context, t *ui.Theme, k palette) {
 		a.drawingBar(c, t, k)
 	}
 	if a.older {
-		ui.Text(c, "正在加载更早的 K 线…").Absolute().Left(14).Bottom(timeH + 10).FontSize(12).TextColor(t.TextMuted).PassThrough()
+		ui.Text(c, lang.T("正在加载更早的 K 线…")).Absolute().Left(14).Bottom(timeH + 10).FontSize(12).TextColor(t.TextMuted).PassThrough()
 	}
 }
 
@@ -340,7 +341,7 @@ func (a *application) noticeBar(c *ui.Context, t *ui.Theme, k palette) {
 			ui.Row(c.Key(fmt.Sprintf("notice-%d", i))).Height(34).Padding(0, 6, 0, 14).Gap(8).AlignItems(ui.Center).MaxWidth(640).
 				Radius(6).Background(k.field).Border(1, k.line).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25)).Children(func() {
 				ui.Text(c, n.text).FontSize(12).SingleLine().MinWidth(0).Shrink(1)
-				if n.edit != "" && ui.Button(c, "去改").Clicked() {
+				if n.edit != "" && ui.Button(c, lang.T("去改")).Clicked() {
 					key := n.edit
 					a.later = append(a.later, func() { a.openEditor(key, "") })
 				}
@@ -359,13 +360,13 @@ func overlay(c *ui.Context) ui.Element {
 
 func (a *application) latestButton(c *ui.Context, k palette) {
 	b := ui.Row(c.Key("latest")).Absolute().Right(axisW + 14).Bottom(timeH + 14).Height(28).PaddingX(12).Gap(6).
-		AlignItems(ui.Center).Radius(14).Cursor(ui.CursorPointer).Label("回到最新")
+		AlignItems(ui.Center).Radius(14).Cursor(ui.CursorPointer).Label(lang.T("回到最新"))
 	bg := k.label
 	if b.Hovered() {
 		bg = k.accent
 	}
 	b.Background(bg).Children(func() {
-		ui.Text(c, "回到最新").FontSize(12).TextColor(k.onLabel)
+		ui.Text(c, lang.T("回到最新")).FontSize(12).TextColor(k.onLabel)
 		ui.Icon(c, latestIcon).Size(12, 12).TextColor(k.onLabel)
 	})
 	if b.Clicked() {
@@ -406,7 +407,8 @@ func (a *application) scaleButtons(c *ui.Context, k palette, near bool) {
 }
 
 func cornerButton(c *ui.Context, k palette, text, tip string, on bool) ui.Element {
-	b := ui.ButtonBase(c.Key("corner-" + text)).Grow(1).FillHeight().Center().Radius(4).Cursor(ui.CursorPointer).Label(text).Tooltip(tip)
+	key, text := text, lang.T(text)
+	b := ui.ButtonBase(c.Key("corner-" + key)).Grow(1).FillHeight().Center().Radius(4).Cursor(ui.CursorPointer).Label(text).Tooltip(lang.T(tip))
 	col := k.muted
 	switch {
 	case on:
@@ -421,7 +423,7 @@ func cornerButton(c *ui.Context, k palette, text, tip string, on bool) ui.Elemen
 // chartMenu is the chart's right-click menu.
 func (a *application) chartMenu(m *ui.Menu) {
 	st := &a.set.Chart
-	if m.Item("重置图表").Chosen() {
+	if m.Item(lang.T("重置图表")).Chosen() {
 		a.resetView()
 	}
 	if a.shownCells() > 1 {
@@ -429,12 +431,12 @@ func (a *application) chartMenu(m *ui.Menu) {
 		if a.maxed >= 0 {
 			label = "还原布局"
 		}
-		if m.Item(label).Chosen() {
+		if m.Item(lang.T(label)).Chosen() {
 			a.maximize(slices.Index(a.cells, a.cell))
 		}
 	}
 	m.Separator()
-	if m.Item("自动缩放价格").Checked(!a.scale.manual).Chosen() {
+	if m.Item(lang.T("自动缩放价格")).Checked(!a.scale.manual).Chosen() {
 		if a.scale.manual {
 			a.scale = prices{}
 		} else {
@@ -442,26 +444,26 @@ func (a *application) chartMenu(m *ui.Menu) {
 		}
 	}
 	for _, o := range scaleModes {
-		if m.Item(o.label + "坐标").Checked(st.Scale == o.key).Chosen() {
+		if m.Item(lang.F("%s坐标", lang.T(o.label))).Checked(st.Scale == o.key).Chosen() {
 			st.Scale = o.key
 			a.save()
 		}
 	}
 	m.Separator()
-	if m.Item("撤销画线").Shortcut(ui.Cmd, ui.KeyZ).Disabled(len(a.undo) == 0).Chosen() {
+	if m.Item(lang.T("撤销画线")).Shortcut(ui.Cmd, ui.KeyZ).Disabled(len(a.undo) == 0).Chosen() {
 		a.undoDrawings()
 	}
-	if m.Item("重做画线").Shortcut(redoMods, redoKey).Disabled(len(a.redo) == 0).Chosen() {
+	if m.Item(lang.T("重做画线")).Shortcut(redoMods, redoKey).Disabled(len(a.redo) == 0).Chosen() {
 		a.redoDrawings()
 	}
-	if m.Item("隐藏画线").Checked(a.hide).Chosen() {
+	if m.Item(lang.T("隐藏画线")).Checked(a.hide).Chosen() {
 		a.hide, a.sel, a.creating = !a.hide, 0, nil
 	}
-	if n := len(a.set.Drawings[a.symbol]); n > 0 && m.Item(fmt.Sprintf("删除全部画线（%d）", n)).Chosen() {
+	if n := len(a.set.Drawings[a.symbol]); n > 0 && m.Item(lang.F("删除全部画线（%d）", n)).Chosen() {
 		a.clearDrawings()
 	}
 	m.Separator()
-	if m.Item("设置…").Chosen() {
+	if m.Item(lang.T("设置…")).Chosen() {
 		a.openSettings()
 	}
 }
@@ -588,9 +590,9 @@ func header(c *ui.Context, t *ui.Theme, title, change string) {
 	// Its right padding lines the columns up with the rows: 6 of padding, 20
 	// for the remove button and 6 of gap.
 	ui.Row(c).FillWidth().Shrink(0).Padding(2, 32, 6, 12).Gap(6).Children(func() {
-		ui.Text(c, title).FontSize(12).TextColor(t.TextMuted).Grow(1)
-		ui.Text(c, "最新价").FontSize(12).TextColor(t.TextMuted).Width(92).TextAlign(ui.End)
-		ui.Text(c, change).FontSize(12).TextColor(t.TextMuted).Width(58).TextAlign(ui.End)
+		ui.Text(c, lang.T(title)).FontSize(12).TextColor(t.TextMuted).Grow(1)
+		ui.Text(c, lang.T("最新价")).FontSize(12).TextColor(t.TextMuted).Width(92).TextAlign(ui.End)
+		ui.Text(c, lang.T(change)).FontSize(12).TextColor(t.TextMuted).Width(58).TextAlign(ui.End)
 	})
 }
 
@@ -601,7 +603,7 @@ func (a *application) searchBox(c *ui.Context, t *ui.Theme, k palette) {
 		if a.query == "" && a.qb.compose == "" {
 			return
 		}
-		x := ui.ButtonBase(c.Key("clear")).Size(24, 24).Shrink(0).Center().Radius(4).Label("清空搜索").Cursor(ui.CursorPointer)
+		x := ui.ButtonBase(c.Key("clear")).Size(24, 24).Shrink(0).Center().Radius(4).Label(lang.T("清空搜索")).Cursor(ui.CursorPointer)
 		if x.Hovered() {
 			x.Background(k.hover)
 		}
@@ -627,8 +629,8 @@ func (a *application) results(c *ui.Context, t *ui.Theme, k palette) {
 	a.searchZh(q)
 	if a.allState == 3 {
 		ui.Row(c).Padding(4, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "币安的交易对列表没加载上").FontSize(12).TextColor(t.TextMuted)
-			if ui.Button(c, "重试").Clicked() {
+			ui.Text(c, lang.T("币安的交易对列表没加载上")).FontSize(12).TextColor(t.TextMuted)
+			if ui.Button(c, lang.T("重试")).Clicked() {
 				a.loadAll()
 			}
 		})
@@ -637,9 +639,9 @@ func (a *application) results(c *ui.Context, t *ui.Theme, k palette) {
 	if len(groups) == 0 {
 		switch {
 		case a.allState < 2 || a.perpState < 2 && a.perpState != 0 || a.usAsking == q || a.zhAsking == q:
-			note("正在搜索「" + q + "」…")
+			note(lang.F("正在搜索「%s」…", q))
 		default:
-			note("没有找到「" + q + "」")
+			note(lang.F("没有找到「%s」", q))
 		}
 		a.perpNote(c, t)
 		return
@@ -687,15 +689,15 @@ func (a *application) results(c *ui.Context, t *ui.Theme, k palette) {
 				}
 			}
 			if whole >= 0 && len(g.hits) > n {
-				note(fmt.Sprintf("还有 %d 个，打得再具体些", len(g.hits)-n))
+				note(lang.F("还有 %d 个，打得再具体些", len(g.hits)-n))
 			}
 		}
 		a.perpNote(c, t)
 		if a.usAsking == q {
-			note("正在问 Yahoo 美股…")
+			note(lang.T("正在问 Yahoo 美股…"))
 		}
 		if a.zhAsking == q {
-			note("正在问东方财富…")
+			note(lang.T("正在问东方财富…"))
 		}
 	})
 	switch {
@@ -715,8 +717,8 @@ func (a *application) perpNote(c *ui.Context, t *ui.Theme) {
 		return
 	}
 	ui.Row(c).Padding(4, 12).Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "币安永续没连上（国内要开代理）").FontSize(12).TextColor(t.TextMuted)
-		if ui.Button(c, "重试").Clicked() {
+		ui.Text(c, lang.T("币安永续没连上（国内要开代理）")).FontSize(12).TextColor(t.TextMuted)
+		if ui.Button(c, lang.T("重试")).Clicked() {
 			a.loadPerps()
 		}
 	})
@@ -728,23 +730,23 @@ func (a *application) perpNote(c *ui.Context, t *ui.Theme) {
 func (a *application) hitGroupHeading(c *ui.Context, t *ui.Theme, k palette, g hitGroup, whole, more bool) (clicked bool) {
 	ui.Row(c.Key("hits-"+g.sec.key)).FillWidth().Height(30).Shrink(0).Padding(0, 10, 0, 12).Gap(6).AlignItems(ui.Center).Children(func() {
 		link := func(key, label, text string) {
-			b := ui.ButtonBase(c.Key(key)).Height(24).PaddingX(6).Center().Radius(4).Cursor(ui.CursorPointer).Label(label)
+			b := ui.ButtonBase(c.Key(key)).Height(24).PaddingX(6).Center().Radius(4).Cursor(ui.CursorPointer).Label(lang.T(label))
 			if b.Hovered() {
 				b.Background(k.hover)
 			}
-			b.Children(func() { ui.Text(c, text).FontSize(12).TextColor(k.accent).SingleLine() })
+			b.Children(func() { ui.Text(c, lang.T(text)).FontSize(12).TextColor(k.accent).SingleLine() })
 			clicked = b.Clicked()
 		}
 		if whole {
 			link("hits-back", "返回全部结果", "‹ 全部结果")
 			ui.Box(c).Grow(1)
 		}
-		ui.Text(c, g.sec.label).FontSize(12).FontWeight(600).TextColor(t.TextMuted).SingleLine()
+		ui.Text(c, lang.T(g.sec.label)).FontSize(12).FontWeight(600).TextColor(t.TextMuted).SingleLine()
 		ui.Text(c, strconv.Itoa(len(g.hits))).FontSize(11).FontFeatures("tnum").TextColor(k.muted).SingleLine()
 		if !whole {
 			ui.Box(c).Grow(1)
 			if more {
-				link("hits-all-"+g.sec.key, "查看全部"+g.sec.label, "全部 ›")
+				link("hits-all-"+g.sec.key, lang.F("查看全部%s", lang.T(g.sec.label)), "全部 ›")
 			}
 		}
 	})
@@ -787,7 +789,7 @@ func (a *application) quoteRow(c *ui.Context, t *ui.Theme, k palette, sym string
 			ui.Box(c).Size(20, 20).Shrink(0)
 			return
 		}
-		x := ui.ButtonBase(c.Key("unwatch-"+sym)).Size(20, 20).Shrink(0).Center().Radius(4).Cursor(ui.CursorPointer).Label("移出自选")
+		x := ui.ButtonBase(c.Key("unwatch-"+sym)).Size(20, 20).Shrink(0).Center().Radius(4).Cursor(ui.CursorPointer).Label(lang.T("移出自选"))
 		if x.Hovered() {
 			x.Background(k.hover)
 		}

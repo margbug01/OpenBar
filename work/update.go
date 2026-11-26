@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // OpenBar updates itself with MyGo's signed updates. mygo build signs each
@@ -88,7 +89,7 @@ func (a *application) checkUpdate(manual bool) {
 			case err != nil:
 				u.stage = before // a version found before is still there
 				if manual {
-					u.err, u.detail = "检查更新失败："+updateError(err), err.Error()
+					u.err, u.detail = lang.F("检查更新失败：%s", updateError(err)), err.Error()
 				}
 			case found == nil:
 				u.stage, u.found, u.latest = updateIdle, nil, true
@@ -127,7 +128,7 @@ func (a *application) installUpdate() {
 		})
 		a.post(func() {
 			if err != nil {
-				u.stage, u.err, u.detail = updateAvailable, "更新没装上："+updateError(err), err.Error()
+				u.stage, u.err, u.detail = updateAvailable, lang.F("更新没装上：%s", updateError(err)), err.Error()
 				return
 			}
 			u.stage = updateReady
@@ -169,11 +170,11 @@ func (a *application) watchUpdates() {
 func updateError(err error) string {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return "连接 GitHub 超时"
+		return lang.T("连接 GitHub 超时")
 	case strings.Contains(err.Error(), "404"):
-		return "GitHub 上的最新版本还没有更新包"
+		return lang.T("GitHub 上的最新版本还没有更新包")
 	}
-	return "连不上 GitHub，看看网络或系统代理"
+	return lang.T("连不上 GitHub，看看网络或系统代理")
 }
 
 // noteLines puts the Markdown release notes in a few lines of plain text:
@@ -203,7 +204,7 @@ func appVersion() string {
 	if v := mygo.App.Version(); v != "" {
 		return v
 	}
-	return "开发版"
+	return lang.T("开发版")
 }
 
 // openAbout shows the settings' 关于 page, where updating is.
@@ -225,18 +226,18 @@ func (a *application) openAbout() {
 func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 	u := &a.upd
 	section(c, t, "OpenBar")
-	infoRow(c, t, "版本 "+appVersion(), "照着 TradingView 做的 K 线图，行情来自 Binance 和 Yahoo。和 TradingView、Binance、Yahoo 都没有关系，也不构成任何投资建议", func() {
+	infoRow(c, t, lang.F("版本 %s", appVersion()), lang.T("照着 TradingView 做的 K 线图，行情来自 Binance 和 Yahoo。和 TradingView、Binance、Yahoo 都没有关系，也不构成任何投资建议"), func() {
 		ui.Link(c, "GitHub", "https://github.com/margbug01/OpenBar")
 	})
 	section(c, t, "更新")
 	switch {
 	case !u.enabled:
-		infoRow(c, t, "这一份不能自己更新", "自己编译的，或者放在没有写入权限的地方（比如还在 dmg 里）。新版本到 GitHub 下载", func() {
-			ui.Link(c, "打开下载页", releasesPage)
+		infoRow(c, t, lang.T("这一份不能自己更新"), lang.T("自己编译的，或者放在没有写入权限的地方（比如还在 dmg 里）。新版本到 GitHub 下载"), func() {
+			ui.Link(c, lang.T("打开下载页"), releasesPage)
 		})
 	case u.stage == updateAvailable:
-		infoRow(c, t, "有新版本 "+u.found.Version, "当前 "+appVersion()+"，更新时 OpenBar 会重新打开一下", func() {
-			if ui.PrimaryButton(c.Key("install-update"), "更新并重启").MinWidth(96).Clicked() {
+		infoRow(c, t, lang.F("有新版本 %s", u.found.Version), lang.F("当前 %s，更新时 OpenBar 会重新打开一下", appVersion()), func() {
+			if ui.PrimaryButton(c.Key("install-update"), lang.T("更新并重启")).MinWidth(96).Clicked() {
 				a.installUpdate()
 			}
 		})
@@ -248,31 +249,31 @@ func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 			})
 		}
 	case u.stage == updateDownloading:
-		infoRow(c, t, "正在下载 "+u.found.Version, fmt.Sprintf("%d%%，装好会自己重新打开", int(u.progress*100)), func() {
+		infoRow(c, t, lang.F("正在下载 %s", u.found.Version), lang.F("%d%%，装好会自己重新打开", int(u.progress*100)), func() {
 			ui.Progress(c, u.progress).Width(160)
 		})
 	case u.stage == updateReady:
-		infoRow(c, t, u.found.Version+" 已经装好", "重新打开 OpenBar 后生效", func() {
-			if ui.PrimaryButton(c.Key("restart-update"), "立即重启").MinWidth(96).Clicked() {
+		infoRow(c, t, lang.F("%s 已经装好", u.found.Version), lang.T("重新打开 OpenBar 后生效"), func() {
+			if ui.PrimaryButton(c.Key("restart-update"), lang.T("立即重启")).MinWidth(96).Clicked() {
 				a.restartForUpdate()
 			}
 		})
 	default: // not asked, up to date, asking
-		title, desc := "检查新版本", "还没检查过"
+		title, desc := lang.T("检查新版本"), lang.T("还没检查过")
 		if u.latest {
 			now := time.Now()
 			at := u.checked.Format("15:04")
 			if y, m, d := u.checked.Date(); y != now.Year() || m != now.Month() || d != now.Day() {
 				at = u.checked.Format("01-02 15:04")
 			}
-			title, desc = "已是最新版本", at+" 检查过"
+			title, desc = lang.T("已是最新版本"), lang.F("%s 检查过", at)
 		}
 		infoRow(c, t, title, desc, func() {
 			label := "检查更新"
 			if u.stage == updateChecking {
 				label = "检查中…"
 			}
-			if ui.Button(c.Key("check-update"), label).Disabled(u.stage == updateChecking).Clicked() {
+			if ui.Button(c.Key("check-update"), lang.T(label)).Disabled(u.stage == updateChecking).Clicked() {
 				a.checkUpdate(true)
 			}
 		})
@@ -284,7 +285,7 @@ func (a *application) aboutPage(c *ui.Context, t *ui.Theme, k palette) {
 		// Kept at once, whatever 确认 or 取消 do to the chart's settings.
 		p, on, changed := u.autoPick.bind(a.set.AutoUpdate)
 		checkRow(c, p, "自动检查更新", func() {
-			ui.Text(c, "打开时和之后每 12 小时问一次 GitHub，只提示，不自己装").FontSize(12).TextColor(t.TextMuted)
+			ui.Text(c, lang.T("打开时和之后每 12 小时问一次 GitHub，只提示，不自己装")).FontSize(12).TextColor(t.TextMuted)
 		})
 		if changed {
 			a.set.AutoUpdate = on
@@ -319,9 +320,9 @@ func (a *application) updateBadge(c *ui.Context, t *ui.Theme, k palette) {
 	if u.found == nil || u.stage != updateAvailable && u.stage != updateDownloading && u.stage != updateReady {
 		return
 	}
-	text := "新版本 " + u.found.Version
+	text := lang.F("新版本 %s", u.found.Version)
 	b := ui.ButtonBase(c.Key("update-badge")).Height(26).Padding(0, 10).Shrink(0).Center().Radius(13).Cursor(ui.CursorPointer).
-		Label(text).Tooltip("打开设置 › 关于，更新 OpenBar").Background(k.chosen)
+		Label(text).Tooltip(lang.T("打开设置 › 关于，更新 OpenBar")).Background(k.chosen)
 	if b.Hovered() {
 		b.Background(k.hover)
 	}

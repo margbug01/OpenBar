@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // The drawing tools, after TradingView's: a column of tools on the left of
@@ -359,7 +361,7 @@ func (a *application) toolsColumn(c *ui.Context, t *ui.Theme, k palette) {
 			if a.set.FavBar {
 				favTip = "常用工具栏：隐藏"
 			}
-			if toolButton(c, t, k, "tool-favbar", "常用工具栏", starIcon, a.set.FavBar).Tooltip(favTip).Clicked() {
+			if toolButton(c, t, k, "tool-favbar", "常用工具栏", starIcon, a.set.FavBar).Tooltip(lang.T(favTip)).Clicked() {
 				a.set.FavBar = !a.set.FavBar
 				a.save()
 			}
@@ -367,7 +369,7 @@ func (a *application) toolsColumn(c *ui.Context, t *ui.Theme, k palette) {
 			if a.set.Magnet {
 				magnetTip = "磁吸：开（靠近时吸到开高低收）"
 			}
-			if toolButton(c, t, k, "tool-magnet", "磁吸", magnetIcon, a.set.Magnet).Tooltip(magnetTip).Clicked() {
+			if toolButton(c, t, k, "tool-magnet", "磁吸", magnetIcon, a.set.Magnet).Tooltip(lang.T(magnetTip)).Clicked() {
 				a.set.Magnet = !a.set.Magnet
 				a.save()
 			}
@@ -382,7 +384,7 @@ func (a *application) toolsColumn(c *ui.Context, t *ui.Theme, k palette) {
 			armed := time.Since(a.trashArmed) < 3*time.Second
 			trash := toolButton(c, t, k, "tool-trash", "删除全部画线", trashIcon, false)
 			if armed {
-				trash.Background(k.down.Alpha(0.25)).Tooltip("再点一次，删除这个交易对的全部画线")
+				trash.Background(k.down.Alpha(0.25)).Tooltip(lang.T("再点一次，删除这个交易对的全部画线"))
 				c.After(3*time.Second - time.Since(a.trashArmed))
 			}
 			if trash.Clicked() {
@@ -402,6 +404,7 @@ func toolSeparator(c *ui.Context, k palette) {
 }
 
 func toolButton(c *ui.Context, t *ui.Theme, k palette, key, tip string, icon *ui.SVG, on bool) ui.Element {
+	tip = lang.T(tip)
 	b := ui.ButtonBase(c.Key(key)).Size(toolBtn, toolBtn).Shrink(0).Center().Radius(6).Cursor(ui.CursorPointer).Label(tip).Tooltip(tip)
 	col := t.Text
 	switch {
@@ -416,7 +419,7 @@ func toolButton(c *ui.Context, t *ui.Theme, k palette, key, tip string, icon *ui
 
 // barButton is an icon button of the drawing bar, named label, explained by tip.
 func barButton(c *ui.Context, t *ui.Theme, k palette, key, label, tip string, icon *ui.SVG, on bool) ui.Element {
-	b := ui.ButtonBase(c.Key(key)).Size(28, 28).Shrink(0).Center().Radius(4).Cursor(ui.CursorPointer).Label(label).Tooltip(tip)
+	b := ui.ButtonBase(c.Key(key)).Size(28, 28).Shrink(0).Center().Radius(4).Cursor(ui.CursorPointer).Label(lang.T(label)).Tooltip(lang.T(tip))
 	col := t.TextMuted
 	switch {
 	case on:
@@ -449,13 +452,13 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 	id := strconv.FormatInt(d.ID, 10)
 	ui.Row(c.Key("drawing-bar")).Height(38).Padding(0, 6).Gap(4).AlignItems(ui.Center).
 		Radius(6).Background(k.field).Border(1, k.line).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25)).Children(func() {
-		ui.Text(c, tool.label).FontSize(12).TextColor(t.TextMuted).Padding(0, 6, 0, 4).SingleLine()
+		ui.Text(c, lang.T(tool.label)).FontSize(12).TextColor(t.TextMuted).Padding(0, 6, 0, 4).SingleLine()
 		if d.Kind != "range" && !isPosition(d.Kind) { // those take the up and down colors
 			a.well(c, "画线颜色", d.Color.or(k.accent), func(h hexColor) {
 				a.remember("color:" + id)
 				d.Color = h
 				a.save()
-			}).Tooltip("颜色")
+			}).Tooltip(lang.T("颜色"))
 		}
 		switch d.Kind {
 		case "text":
@@ -465,7 +468,7 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 				d.Text = picked
 				a.save()
 			}
-			in := ui.TextInput(c.Key("drawing-text"), p).Width(150).FontSize(13).Label("文字内容")
+			in := ui.TextInput(c.Key("drawing-text"), p).Width(150).FontSize(13).Label(lang.T("文字内容"))
 			if a.editText {
 				in.Focus()
 				a.editText = false
@@ -474,7 +477,7 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 				a.remember("")
 				d.Size, _ = strconv.ParseFloat(v, 64)
 				a.save()
-			}).Width(76).MinWidth(76).Tooltip("文字大小") // Select keeps 140 at least otherwise
+			}).Width(76).MinWidth(76).Tooltip(lang.T("文字大小")) // Select keeps 140 at least otherwise
 		case "range":
 		case "long", "short":
 			fixedText(c, span(ratioText(d), 12, t.Text, 600)).Margin(0, 6)
@@ -489,8 +492,8 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 					f.set(picked)
 					a.save()
 				}
-				ui.Text(c, f.unit).FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 6).SingleLine()
-				ui.NumberInput(c.Key("position-"+f.key), p, f.lo, f.hi, f.step).Width(150).Shrink(0).ReadOnly(d.Locked).Label(f.name).Tooltip(f.tip)
+				ui.Text(c, lang.T(f.unit)).FontSize(12).TextColor(t.TextMuted).Margin(0, 0, 0, 6).SingleLine()
+				ui.NumberInput(c.Key("position-"+f.key), p, f.lo, f.hi, f.step).Width(150).Shrink(0).ReadOnly(d.Locked).Label(lang.T(f.name)).Tooltip(lang.T(f.tip))
 			}
 		default:
 			widthButtons(c, t, k, "width", d.Width, func(w float64) {
@@ -502,7 +505,7 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 				a.remember("")
 				d.Style, _ = strconv.Atoi(v)
 				a.save()
-			}).Width(84).MinWidth(84).Tooltip("线型")
+			}).Width(84).MinWidth(84).Tooltip(lang.T("线型"))
 		}
 		if d.Kind == "hline" || d.Kind == "hray" {
 			p, picked, changed := a.pricePick.bind(d.Pts[0].P)
@@ -512,13 +515,13 @@ func (a *application) drawingBarItems(c *ui.Context, t *ui.Theme, k palette, d *
 				a.save()
 			}
 			step := math.Pow(10, -float64(a.chartDecimals(d.Pts[0].P)))
-			ui.NumberInput(c.Key("drawing-price"), p, -1e15, 1e15, step).Width(170).ReadOnly(d.Locked).Label("价格").Tooltip("价格")
+			ui.NumberInput(c.Key("drawing-price"), p, -1e15, 1e15, step).Width(170).ReadOnly(d.Locked).Label(lang.T("价格")).Tooltip(lang.T("价格"))
 		}
 		if barButton(c, t, k, "drawing-settings", "画线设置", "设置（双击画线也能打开）", gearIcon, false).Clicked() {
 			id := d.ID
 			a.later = append(a.later, func() { a.openDrawing(id) })
 		}
-		if barButton(c, t, k, "drawing-copy", "复制画线", "复制一份（"+cmdKey+"C、"+cmdKey+"V）", copyIcon, false).Clicked() {
+		if barButton(c, t, k, "drawing-copy", "复制画线", lang.F("复制一份（%sC、%sV）", cmdKey, cmdKey), copyIcon, false).Clicked() {
 			a.duplicate(*d)
 			return // d now points into the list before the copy was added
 		}

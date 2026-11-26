@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // The long and short position tools, after TradingView's: a box from the
@@ -103,9 +105,9 @@ func riskReward(d *drawing) (float64, bool) {
 
 func ratioText(d *drawing) string {
 	if r, ok := riskReward(d); ok {
-		return fmt.Sprintf("盈亏比 %.2f", r)
+		return lang.F("盈亏比 %.2f", r)
 	}
-	return "盈亏比 —"
+	return lang.T("盈亏比 —")
 }
 
 // drawPosition draws the box: the profit in green, the loss in red, the
@@ -164,11 +166,11 @@ func (a *application) drawPosition(p *ui.Painter, plot ui.Rect, m mapper, k pale
 		p.Fill(ui.Rect{X: cx - bw/2, Y: by, W: bw, H: bh}, c, 3)
 		p.RichText(cx-w/2, by+3, 0, sp)
 	}
-	tag("止盈 "+move(d.Pts[1].P), profit, yt, yt < ye)
-	tag("止损 "+move(d.Pts[2].P), loss, ys, ys < ye)
+	tag(lang.F("止盈 %s", move(d.Pts[1].P)), profit, yt, yt < ye)
+	tag(lang.F("止损 %s", move(d.Pts[2].P)), loss, ys, ys < ye)
 	text := ratioText(d)
 	if sized {
-		text += "  数量 " + qtyText(qty)
+		text += lang.F("  数量 %s", qtyText(qty))
 	}
 	sp := span(text, 11.5, k.onLabel, 600)
 	w, h := p.MeasureText(0, sp)

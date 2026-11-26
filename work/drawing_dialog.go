@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 	"slices"
@@ -10,6 +9,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // A drawing's settings, after TradingView's: its style, its text, where its
@@ -36,7 +37,7 @@ func drawTabs(kind string) []string {
 	if hasText(kind) {
 		tabs = append(tabs, "文字")
 	}
-	return append(tabs, "坐标", "可见性")
+	return append(tabs, "坐标|画线", "可见性")
 }
 
 func (a *application) drawingByID(id int64) *drawing {
@@ -106,11 +107,15 @@ func (a *application) drawingDialog(c *ui.Context, t *ui.Theme, k palette) {
 	ui.DialogBase(c.Key("drawing-dialog"), &a.drawDialog, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.45))
 		panel.Width(540).Height(min(640, wh-48)).Radius(10).Background(k.bg).Border(1, k.line).
-			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(tool.label + " 设置")
+			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(lang.F("%s 设置", lang.T(tool.label)))
 		ui.Column(c).FillWidth().FillHeight().Children(func() {
 			dialogHeader(c, t, k, tool.label, "关闭画线设置", func() { a.closeDrawing(false) })
 			ui.Row(c).FillWidth().Shrink(0).Padding(0, 24, 6, 24).Children(func() {
-				ui.Tabs(c.Key("drawing-tabs"), &a.drawTab, tabs...)
+				shown := make([]string, len(tabs))
+				for i, tab := range tabs {
+					shown[i] = lang.T(tab)
+				}
+				ui.Tabs(c.Key("drawing-tabs"), &a.drawTab, shown...)
 			})
 			tab := tabs[a.drawTab]
 			ui.Scroll(c.Key("drawing-tab-" + tab)).Grow(1).FillWidth().MinHeight(0).Children(func() {
@@ -120,7 +125,7 @@ func (a *application) drawingDialog(c *ui.Context, t *ui.Theme, k palette) {
 						a.drawStylePage(c, t, k, d)
 					case "文字":
 						a.drawTextPage(c, t, k, d)
-					case "坐标":
+					case "坐标|画线":
 						a.drawPointsPage(c, t, d)
 					case "可见性":
 						a.drawVisibilityPage(c, t, d)
@@ -140,14 +145,14 @@ func (a *application) drawDialogButtons(c *ui.Context, k palette, d *drawing, to
 		if isDefault {
 			label = "已是默认"
 		}
-		if ui.Button(c.Key("drawing-save-default"), label).Tooltip("以后新画的"+tool.label+"都用这个样式").Clicked() && !isDefault {
+		if ui.Button(c.Key("drawing-save-default"), lang.T(label)).Tooltip(lang.F("以后新画的%s都用这个样式", lang.T(tool.label))).Clicked() && !isDefault {
 			if a.set.DrawDefaults == nil {
 				a.set.DrawDefaults = map[string]drawing{}
 			}
 			a.set.DrawDefaults[d.Kind] = styleOf(*d)
 			a.save()
 		}
-		if ui.Button(c.Key("drawing-reset"), "恢复默认").Tooltip("换回默认的样式，位置不变").Clicked() {
+		if ui.Button(c.Key("drawing-reset"), lang.T("恢复默认")).Tooltip(lang.T("换回默认的样式，位置不变")).Clicked() {
 			fresh := a.newDrawing(d.Kind, d.ID, 0)
 			fresh.Pts, fresh.Locked, fresh.Text = d.Pts, d.Locked, d.Text
 			*d = fresh
@@ -156,10 +161,10 @@ func (a *application) drawDialogButtons(c *ui.Context, k palette, d *drawing, to
 			}
 		}
 		ui.Box(c).Grow(1)
-		if ui.Button(c, "取消").Clicked() {
+		if ui.Button(c, lang.T("取消")).Clicked() {
 			a.closeDrawing(false)
 		}
-		if ui.PrimaryButton(c, "确认").Clicked() {
+		if ui.PrimaryButton(c, lang.T("确认")).Clicked() {
 			a.closeDrawing(true)
 		}
 	})
@@ -169,7 +174,7 @@ func (a *application) drawDialogButtons(c *ui.Context, k palette, d *drawing, to
 func triCheck(c *ui.Context, key, name string, v *tri, def bool) {
 	on := v.on(def)
 	ui.Row(c).FillWidth().MinHeight(36).AlignItems(ui.Center).Children(func() {
-		ui.Checkbox(c.Key(key), &on, name).Label(name)
+		ui.Checkbox(c.Key(key), &on, lang.T(name)).Label(lang.T(name))
 	})
 	if on != v.on(def) {
 		*v = triOf(on)
@@ -178,7 +183,7 @@ func triCheck(c *ui.Context, key, name string, v *tri, def bool) {
 
 func boolCheck(c *ui.Context, key, name string, v *bool) {
 	ui.Row(c).FillWidth().MinHeight(36).AlignItems(ui.Center).Children(func() {
-		ui.Checkbox(c.Key(key), v, name).Label(name)
+		ui.Checkbox(c.Key(key), v, lang.T(name)).Label(lang.T(name))
 	})
 }
 
@@ -197,7 +202,7 @@ func (a *application) drawStylePage(c *ui.Context, t *ui.Theme, k palette, d *dr
 	col := d.Color.or(k.accent)
 	lineRow := func(name string) {
 		row(c, name, func() {
-			a.well(c, key("颜色"), col, func(h hexColor) { d.Color = h }).Label(name + "颜色").Tooltip("颜色")
+			a.well(c, key("颜色"), col, func(h hexColor) { d.Color = h }).Label(lang.F("%s颜色", lang.T(name))).Tooltip(lang.T("颜色"))
 			widthButtons(c, t, k, key("线宽"), d.Width, func(w float64) { d.Width = w })
 			a.dropdown(c, "线型", lineStyles, strconv.Itoa(d.Style), func(v string) { d.Style, _ = strconv.Atoi(v) }).Width(96).MinWidth(96)
 		})
@@ -205,8 +210,8 @@ func (a *application) drawStylePage(c *ui.Context, t *ui.Theme, k palette, d *dr
 	switch {
 	case d.Kind == "range":
 		row(c, "颜色", func() {
-			a.well(c, key("上涨"), d.Color.or(ui.Hex(barUp)), func(h hexColor) { d.Color = h }).Label("上涨颜色").Tooltip("向上")
-			a.well(c, key("下跌"), d.Color2.or(ui.Hex(barDown)), func(h hexColor) { d.Color2 = h }).Label("下跌颜色").Tooltip("向下")
+			a.well(c, key("上涨"), d.Color.or(ui.Hex(barUp)), func(h hexColor) { d.Color = h }).Label(lang.T("上涨颜色")).Tooltip(lang.T("向上"))
+			a.well(c, key("下跌"), d.Color2.or(ui.Hex(barDown)), func(h hexColor) { d.Color2 = h }).Label(lang.T("下跌颜色")).Tooltip(lang.T("向下"))
 		})
 		row(c, "箭头", func() { widthButtons(c, t, k, key("线宽"), d.Width, func(w float64) { d.Width = w }) })
 		triCheck(c, key("背景"), "背景", &d.Back, true)
@@ -221,18 +226,18 @@ func (a *application) drawStylePage(c *ui.Context, t *ui.Theme, k palette, d *dr
 		return
 	case isPosition(d.Kind):
 		row(c, "颜色", func() {
-			a.well(c, key("止盈"), d.Color.or(ui.Hex(barUp)), func(h hexColor) { d.Color = h }).Label("止盈颜色").Tooltip("止盈")
-			a.well(c, key("止损"), d.Color2.or(ui.Hex(barDown)), func(h hexColor) { d.Color2 = h }).Label("止损颜色").Tooltip("止损")
+			a.well(c, key("止盈"), d.Color.or(ui.Hex(barUp)), func(h hexColor) { d.Color = h }).Label(lang.T("止盈颜色")).Tooltip(lang.T("止盈"))
+			a.well(c, key("止损"), d.Color2.or(ui.Hex(barDown)), func(h hexColor) { d.Color2 = h }).Label(lang.T("止损颜色")).Tooltip(lang.T("止损"))
 		})
 		row(c, "账户金额", func() {
-			ui.NumberInput(c.Key(key("账户")), &d.Account, 1, 1e12, 100).Width(170).Shrink(0).Label("账户金额")
+			ui.NumberInput(c.Key(key("账户")), &d.Account, 1, 1e12, 100).Width(170).Shrink(0).Label(lang.T("账户金额"))
 		})
 		row(c, "风险", func() {
 			step, hi := 0.5, 100.0
 			if d.RiskAmt {
 				step, hi = 10, 1e12
 			}
-			ui.NumberInput(c.Key(key("风险")), &d.Risk, 0.01, hi, step).Width(170).Shrink(0).Label("风险")
+			ui.NumberInput(c.Key(key("风险")), &d.Risk, 0.01, hi, step).Width(170).Shrink(0).Label(lang.T("风险"))
 			mode := map[bool]string{false: "pct", true: "amt"}[d.RiskAmt]
 			a.dropdown(c, "风险单位", riskModes, mode, func(v string) {
 				if amt := v == "amt"; amt != d.RiskAmt {
@@ -259,24 +264,24 @@ func (a *application) drawStylePage(c *ui.Context, t *ui.Theme, k palette, d *dr
 	}
 	if hasExtend(d.Kind) {
 		row(c, "延伸", func() {
-			ui.Checkbox(c.Key(key("向左")), &d.ExtL, "向左").Label("向左延伸")
+			ui.Checkbox(c.Key(key("向左")), &d.ExtL, lang.T("向左")).Label(lang.T("向左延伸"))
 			if d.Kind == "ray" {
 				on := true
-				ui.Checkbox(c.Key(key("向右")), &on, "向右").Label("向右延伸").Disabled(true)
+				ui.Checkbox(c.Key(key("向右")), &on, lang.T("向右")).Label(lang.T("向右延伸")).Disabled(true)
 			} else {
-				ui.Checkbox(c.Key(key("向右")), &d.ExtR, "向右").Label("向右延伸")
+				ui.Checkbox(c.Key(key("向右")), &d.ExtR, lang.T("向右")).Label(lang.T("向右延伸"))
 			}
 		})
 	}
 	if hasBack(d.Kind) {
 		on := backOn(d)
 		ui.Row(c).FillWidth().MinHeight(40).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Checkbox(c.Key(key("背景")), &on, "背景").Label("背景").Width(150).Shrink(0)
+			ui.Checkbox(c.Key(key("背景")), &on, lang.T("背景")).Label(lang.T("背景")).Width(150).Shrink(0)
 			if d.Kind == "fib" {
 				o := strconv.FormatFloat(float64(fibOpacity(d)), 'f', -1, 32)
-				a.dropdown(c, "背景不透明度", opacities, o, func(v string) { d.Opacity, _ = strconv.ParseFloat(v, 64) }).Width(96).MinWidth(96).Tooltip("不透明度")
+				a.dropdown(c, "背景不透明度", opacities, o, func(v string) { d.Opacity, _ = strconv.ParseFloat(v, 64) }).Width(96).MinWidth(96).Tooltip(lang.T("不透明度"))
 			} else {
-				a.well(c, key("背景色"), backColor(d, col), func(h hexColor) { d.Fill = h }).Label("背景颜色").Tooltip("背景颜色（可调透明度）")
+				a.well(c, key("背景色"), backColor(d, col), func(h hexColor) { d.Fill = h }).Label(lang.T("背景颜色")).Tooltip(lang.T("背景颜色（可调透明度）"))
 			}
 		})
 		if on != backOn(d) {
@@ -308,8 +313,8 @@ func (a *application) fibSettings(c *ui.Context, t *ui.Theme, k palette, d *draw
 	triCheck(c, key("价格"), "显示价格", &d.Stats, true)
 	row(c, "档位文字", func() {
 		a.dropdown(c, "档位文字", levelTexts, strconv.Itoa(d.LevelText), func(v string) { d.LevelText, _ = strconv.Atoi(v) }).Width(110).MinWidth(110)
-		a.dropdown(c, "标签位置", labelSides, strconv.Itoa(d.LabelSide), func(v string) { d.LabelSide, _ = strconv.Atoi(v) }).Width(96).MinWidth(96).Tooltip("标签在左边还是右边")
-		a.dropdown(c, "标签字号", fibSizes, strconv.Itoa(int(fibSize(d))), func(v string) { d.Size, _ = strconv.ParseFloat(v, 64) }).Width(80).MinWidth(80).Tooltip("字号")
+		a.dropdown(c, "标签位置", labelSides, strconv.Itoa(d.LabelSide), func(v string) { d.LabelSide, _ = strconv.Atoi(v) }).Width(96).MinWidth(96).Tooltip(lang.T("标签在左边还是右边"))
+		a.dropdown(c, "标签字号", fibSizes, strconv.Itoa(int(fibSize(d))), func(v string) { d.Size, _ = strconv.ParseFloat(v, 64) }).Width(80).MinWidth(80).Tooltip(lang.T("字号"))
 	})
 	boolCheck(c, key("统一颜色"), "各档位都用线条的颜色", &d.OneColor)
 	section(c, t, "档位")
@@ -320,20 +325,20 @@ func (a *application) fibSettings(c *ui.Context, t *ui.Theme, k palette, d *draw
 			ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(4).Children(func() {
 				for i := col0 * half; i < min((col0+1)*half, len(d.Levels)); i++ {
 					lv := &d.Levels[i]
-					name := fmt.Sprintf("档位 %d", i+1)
+					lvKey, name := "档位 "+strconv.Itoa(i+1), lang.F("档位 %d", i+1)
 					ui.Row(c).FillWidth().Height(34).Gap(6).AlignItems(ui.Center).Children(func() {
 						on := !lv.Off
-						ui.Checkbox(c.Key(key(name+" 显示")), &on, "").Label(name + " 显示").Shrink(0)
+						ui.Checkbox(c.Key(key(lvKey+" 显示")), &on, "").Label(lang.F("%s 显示", name)).Shrink(0)
 						lv.Off = !on
-						ui.NumberInput(c.Key(key(name+" 数值")), &lv.V, -100, 100, 0.001).Grow(1).MinWidth(96).Label(name + " 数值")
+						ui.NumberInput(c.Key(key(lvKey+" 数值")), &lv.V, -100, 100, 0.001).Grow(1).MinWidth(96).Label(lang.F("%s 数值", name))
 						if !d.OneColor {
-							a.well(c, key(name+" 颜色"), lv.C.or(col), func(h hexColor) {
+							a.well(c, key(lvKey+" 颜色"), lv.C.or(col), func(h hexColor) {
 								if dd := a.drawingByID(id); dd != nil && i < len(dd.Levels) {
 									dd.Levels[i].C = h
 								}
-							}).Label(name + " 颜色")
+							}).Label(lang.F("%s 颜色", name))
 						}
-						if legendButton(c, t, k, key(name+" 删除"), name+" 删除", clearIcon).Clicked() {
+						if legendButton(c, t, k, key(lvKey+" 删除"), lang.F("%s 删除", name), clearIcon).Clicked() {
 							a.later = append(a.later, func() {
 								if dd := a.drawingByID(id); dd != nil && i < len(dd.Levels) {
 									dd.Levels = slices.Delete(dd.Levels, i, i+1)
@@ -346,7 +351,7 @@ func (a *application) fibSettings(c *ui.Context, t *ui.Theme, k palette, d *draw
 		}
 	})
 	ui.Row(c).FillWidth().Padding(10, 0, 0, 0).Gap(8).Children(func() {
-		if ui.Button(c.Key(key("添加档位")), "添加档位").Clicked() {
+		if ui.Button(c.Key(key("添加档位")), lang.T("添加档位")).Clicked() {
 			a.later = append(a.later, func() {
 				if dd := a.drawingByID(id); dd != nil {
 					next := 1.0
@@ -357,7 +362,7 @@ func (a *application) fibSettings(c *ui.Context, t *ui.Theme, k palette, d *draw
 				}
 			})
 		}
-		if ui.Button(c.Key(key("默认档位")), "恢复默认档位").Tooltip("TradingView 的档位和颜色").Clicked() {
+		if ui.Button(c.Key(key("默认档位")), lang.T("恢复默认档位")).Tooltip(lang.T("TradingView 的档位和颜色")).Clicked() {
 			a.later = append(a.later, func() {
 				if dd := a.drawingByID(id); dd != nil {
 					dd.Levels, dd.OneColor = defaultFibLevels(), false
@@ -371,31 +376,31 @@ func (a *application) drawTextPage(c *ui.Context, t *ui.Theme, k palette, d *dra
 	id := strconv.FormatInt(d.ID, 10)
 	key := func(s string) string { return "画线设置 " + s + " " + id }
 	col := d.Color.or(k.accent)
-	ui.TextArea(c.Key(key("文字")), &d.Text).FillWidth().Height(84).FontSize(13).Placeholder("在画线旁边写点什么").Label("文字内容")
+	ui.TextArea(c.Key(key("文字")), &d.Text).FillWidth().Height(84).FontSize(13).Placeholder(lang.T("在画线旁边写点什么")).Label(lang.T("文字内容"))
 	ui.Box(c).Height(8)
 	row(c, "样式", func() {
 		if d.Kind == "text" {
-			a.well(c, key("文字颜色"), col, func(h hexColor) { d.Color = h }).Label("文字颜色").Tooltip("颜色")
+			a.well(c, key("文字颜色"), col, func(h hexColor) { d.Color = h }).Label(lang.T("文字颜色")).Tooltip(lang.T("颜色"))
 		} else {
-			a.well(c, key("文字颜色"), textColor(d, col), func(h hexColor) { d.TextColor = h }).Label("文字颜色").Tooltip("颜色")
+			a.well(c, key("文字颜色"), textColor(d, col), func(h hexColor) { d.TextColor = h }).Label(lang.T("文字颜色")).Tooltip(lang.T("颜色"))
 		}
-		a.dropdown(c, "文字字号", drawTextSizes, strconv.Itoa(int(textSize(d))), func(v string) { d.Size, _ = strconv.ParseFloat(v, 64) }).Width(80).MinWidth(80).Tooltip("字号")
-		ui.Checkbox(c.Key(key("粗体")), &d.Bold, "粗体").Label("粗体")
-		ui.Checkbox(c.Key(key("斜体")), &d.Italic, "斜体").Label("斜体")
+		a.dropdown(c, "文字字号", drawTextSizes, strconv.Itoa(int(textSize(d))), func(v string) { d.Size, _ = strconv.ParseFloat(v, 64) }).Width(80).MinWidth(80).Tooltip(lang.T("字号"))
+		ui.Checkbox(c.Key(key("粗体")), &d.Bold, lang.T("粗体")).Label(lang.T("粗体"))
+		ui.Checkbox(c.Key(key("斜体")), &d.Italic, lang.T("斜体")).Label(lang.T("斜体"))
 	})
 	switch d.Kind {
 	case "text":
 		on := backOn(d)
 		ui.Row(c).FillWidth().MinHeight(40).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Checkbox(c.Key(key("背景")), &on, "背景").Label("文字背景").Width(150).Shrink(0)
-			a.well(c, key("背景色"), backColor(d, col), func(h hexColor) { d.Fill = h }).Label("背景颜色")
+			ui.Checkbox(c.Key(key("背景")), &on, lang.T("背景")).Label(lang.T("文字背景")).Width(150).Shrink(0)
+			a.well(c, key("背景色"), backColor(d, col), func(h hexColor) { d.Fill = h }).Label(lang.T("背景颜色"))
 		})
 		if on != backOn(d) {
 			d.Back = triOf(on)
 		}
 		ui.Row(c).FillWidth().MinHeight(40).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Checkbox(c.Key(key("边框")), &d.Border, "边框").Label("文字边框").Width(150).Shrink(0)
-			a.well(c, key("边框色"), d.Color2.or(col), func(h hexColor) { d.Color2 = h }).Label("边框颜色")
+			ui.Checkbox(c.Key(key("边框")), &d.Border, lang.T("边框")).Label(lang.T("文字边框")).Width(150).Shrink(0)
+			a.well(c, key("边框色"), d.Color2.or(col), func(h hexColor) { d.Color2 = h }).Label(lang.T("边框颜色"))
 		})
 	case "vline":
 		row(c, "位置", func() {
@@ -415,21 +420,21 @@ func (a *application) drawTextPage(c *ui.Context, t *ui.Theme, k palette, d *dra
 	}
 }
 
-// pointNames are what d's points are called, and whether each has a
+// pointNames are what d's points are called, in the language shown, and whether each has a
 // price and a time to set.
 func pointNames(d *drawing) (names []string, price, when []bool) {
 	switch d.Kind {
 	case "long", "short":
-		return []string{"入场", "止盈", "止损", "右边界"}, []bool{true, true, true, false}, []bool{true, false, false, true}
+		return []string{lang.T("入场"), lang.T("止盈"), lang.T("止损"), lang.T("右边界")}, []bool{true, true, true, false}, []bool{true, false, false, true}
 	case "hline":
-		return []string{"价格"}, []bool{true}, []bool{false}
+		return []string{lang.T("价格")}, []bool{true}, []bool{false}
 	case "vline":
-		return []string{"时间"}, []bool{false}, []bool{true}
+		return []string{lang.T("时间")}, []bool{false}, []bool{true}
 	case "hray", "text":
-		return []string{"位置"}, []bool{true}, []bool{true}
+		return []string{lang.T("位置")}, []bool{true}, []bool{true}
 	}
 	for i := range d.Pts {
-		names = append(names, fmt.Sprintf("点 %d", i+1))
+		names = append(names, lang.F("点 %d", i+1))
 		price, when = append(price, true), append(when, true)
 	}
 	return names, price, when
@@ -437,7 +442,7 @@ func pointNames(d *drawing) (names []string, price, when []bool) {
 
 func (a *application) drawPointsPage(c *ui.Context, t *ui.Theme, d *drawing) {
 	if d.Locked {
-		ui.Text(c, "画线已锁定，解锁后才能改位置。").FontSize(12).TextColor(t.TextMuted).Padding(8, 0)
+		ui.Text(c, lang.T("画线已锁定，解锁后才能改位置。")).FontSize(12).TextColor(t.TextMuted).Padding(8, 0)
 	}
 	names, price, when := pointNames(d)
 	for i := range min(len(names), len(d.Pts)) {
@@ -454,7 +459,7 @@ func (a *application) drawPointsPage(c *ui.Context, t *ui.Theme, d *drawing) {
 	if isPosition(d.Kind) {
 		fixPosition(d)
 	}
-	ui.Text(c, "时间按图表的时区，写法如 2026-11-15 09:30，落在最近的一根K线上。").FontSize(12).TextColor(t.TextMuted).Padding(10, 0, 0, 0)
+	ui.Text(c, lang.T("时间按图表的时区，写法如 2026-11-15 09:30，落在最近的一根K线上。")).FontSize(12).TextColor(t.TextMuted).Padding(10, 0, 0, 0)
 }
 
 // pointText is the text typed for a point's key, from what it is until the
@@ -474,7 +479,7 @@ func (a *application) priceInput(c *ui.Context, d *drawing, i int, name string) 
 	key := "画线坐标 价格 " + strconv.FormatInt(d.ID, 10) + " " + strconv.Itoa(i)
 	now := formatPrice(d.Pts[i].P, a.chartDecimals(d.Pts[i].P))
 	text := a.pointText(key, now)
-	ui.TextInput(c.Key(key), text).Width(170).Shrink(0).ReadOnly(d.Locked).Label(name + " 价格").Tooltip("价格")
+	ui.TextInput(c.Key(key), text).Width(170).Shrink(0).ReadOnly(d.Locked).Label(lang.F("%s 价格", name)).Tooltip(lang.T("价格"))
 	if *text == now { // as it is: not rounded to what shows
 		return
 	}
@@ -490,7 +495,7 @@ func (a *application) timeInput(c *ui.Context, d *drawing, i int, name string) {
 	loc := a.set.Chart.loc()
 	now := time.UnixMilli(d.Pts[i].T).In(loc).Format(timeLayout)
 	text := a.pointText(key, now)
-	ui.TextInput(c.Key(key), text).Width(170).Shrink(0).ReadOnly(d.Locked).Label(name + " 时间").Tooltip("时间，如 2026-11-15 09:30")
+	ui.TextInput(c.Key(key), text).Width(170).Shrink(0).ReadOnly(d.Locked).Label(lang.F("%s 时间", name)).Tooltip(lang.T("时间，如 2026-11-15 09:30"))
 	tm, err := time.ParseInLocation(timeLayout, strings.TrimSpace(*text), loc)
 	if *text == now || err != nil || d.Locked {
 		return
@@ -504,11 +509,11 @@ func (a *application) timeInput(c *ui.Context, d *drawing, i int, name string) {
 }
 
 func (a *application) drawVisibilityPage(c *ui.Context, t *ui.Theme, d *drawing) {
-	ui.Text(c, "在这些周期上显示：").FontSize(13).Padding(8, 0)
+	ui.Text(c, lang.T("在这些周期上显示：")).FontSize(13).Padding(8, 0)
 	for _, iv := range intervals {
 		on := !hiddenOn(d, iv.key)
 		ui.Row(c).FillWidth().MinHeight(34).AlignItems(ui.Center).Children(func() {
-			ui.Checkbox(c.Key("画线可见 "+iv.key), &on, iv.label).Label(iv.label + " 显示")
+			ui.Checkbox(c.Key("画线可见 "+iv.key), &on, lang.T(iv.label)).Label(lang.F("%s 显示", lang.T(iv.label)))
 		})
 		switch {
 		case on && hiddenOn(d, iv.key):
@@ -520,5 +525,5 @@ func (a *application) drawVisibilityPage(c *ui.Context, t *ui.Theme, d *drawing)
 	if len(d.HideOn) == 0 {
 		d.HideOn = nil
 	}
-	ui.Text(c, "在没勾的周期上看不到它，也点不到它。").FontSize(12).TextColor(t.TextMuted).Padding(10, 0, 0, 0)
+	ui.Text(c, lang.T("在没勾的周期上看不到它，也点不到它。")).FontSize(12).TextColor(t.TextMuted).Padding(10, 0, 0, 0)
 }

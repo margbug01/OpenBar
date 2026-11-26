@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -502,7 +503,7 @@ func (a *application) drawChart(p *ui.Painter, r ui.Rect, k palette, hx, hy floa
 	if st.Watermark {
 		base, quote := a.names(a.symbol)
 		iv, _ := intervalOf(a.interval)
-		wm := ui.Span{Text: base + suffix(quote) + " · " + iv.label, Size: 56, Weight: 700, Color: k.text.Alpha(0.07)}
+		wm := ui.Span{Text: base + suffix(quote) + " · " + lang.T(iv.label), Size: 56, Weight: 700, Color: k.text.Alpha(0.07)}
 		w, h := p.MeasureText(0, wm)
 		p.RichText(plot.X+(plot.W-w)/2, plot.Y+(plot.H-h)/2, 0, wm)
 	}
@@ -701,7 +702,7 @@ func (a *application) legendSpans(k palette, i int) (title, spans []ui.Span) {
 		title = []ui.Span{
 			{Text: base, Size: 14, Weight: 600, Color: k.text},
 			{Text: a.after(a.symbol), Size: 12, Color: k.muted},
-			{Text: "  ·  " + iv.label + "  ·  " + venue(a.symbol) + map[bool]string{true: " · RTH"}[a.rth()], Size: 12, Color: k.muted}}
+			{Text: "  ·  " + lang.T(iv.label) + "  ·  " + venue(a.symbol) + map[bool]string{true: " · RTH"}[a.rth()], Size: 12, Color: k.muted}}
 		if !market.IsListed(a.symbol) { // a pair reads as one name: BTC/USDT
 			title[1].Size, title[1].Weight, title[1].Color = 14, 600, k.text
 		}
@@ -711,7 +712,7 @@ func (a *application) legendSpans(k palette, i int) (title, spans []ui.Span) {
 			title = slices.Insert(title, 2, ui.Span{Text: " " + a.perpKind(a.symbol), Size: 12, Color: k.muted})
 			if f := a.funding; a.fundingOf == a.symbol {
 				left := max(f.Next-time.Now().UnixMilli(), 0) / 1000
-				title = append(title, ui.Span{Text: fmt.Sprintf("  ·  标记 %s  ·  资金费率 %+.4f%%  %02d:%02d:%02d",
+				title = append(title, ui.Span{Text: lang.F("  ·  标记 %s  ·  资金费率 %+.4f%%  %02d:%02d:%02d",
 					a.priceText(a.symbol, f.Mark), f.Rate*100, left/3600, left/60%60, left%60), Size: 12, Color: k.muted})
 			}
 		}
@@ -722,7 +723,7 @@ func (a *application) legendSpans(k palette, i int) (title, spans []ui.Span) {
 			name string
 			v    float64
 		}{{"开", b.O}, {"高", b.H}, {"低", b.L}, {"收", b.C}} {
-			spans = append(spans, ui.Span{Text: f.name + " ", Size: 12, Color: k.muted}, span(formatPrice(f.v, d)+"    ", 12, col, 0))
+			spans = append(spans, ui.Span{Text: lang.T(f.name) + " ", Size: 12, Color: k.muted}, span(formatPrice(f.v, d)+"    ", 12, col, 0))
 		}
 	}
 	if st.Change {
@@ -737,7 +738,7 @@ func (a *application) legendSpans(k palette, i int) (title, spans []ui.Span) {
 		spans = append(spans, span(formatSigned(move, d)+fmt.Sprintf(" (%+.2f%%)    ", pct), 12, k.move(move), 0))
 	}
 	if st.VolumeValue {
-		spans = append(spans, ui.Span{Text: "量 ", Size: 12, Color: k.muted}, span(formatVolume(b.V)+" "+a.volumeUnit(a.symbol), 12, k.text, 0))
+		spans = append(spans, ui.Span{Text: lang.T("量") + " ", Size: 12, Color: k.muted}, span(formatVolume(b.V)+" "+a.volumeUnit(a.symbol), 12, k.text, 0))
 	}
 	return title, spans
 }

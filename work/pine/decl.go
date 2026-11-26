@@ -3,10 +3,11 @@ package pine
 import (
 	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"candle/lang"
 )
 
 // The declarations: indicator, the inputs, and what a script draws.
@@ -100,7 +101,7 @@ func inputFn(kind string) *bfn {
 			return cx{}, errAt(get("title").tok, "输入的标题要是固定的文字")
 		}
 		if title == "" {
-			title = "参数 " + strconv.Itoa(len(c.s.Inputs)+1)
+			title = lang.F("参数 %d", len(c.s.Inputs)+1)
 		}
 		in.Title = title
 		in.Tooltip, _ = konstStr(get("tooltip"), "")

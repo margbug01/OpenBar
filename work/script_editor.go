@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
 
+	"candle/lang"
 	"candle/pine"
 )
 
@@ -35,7 +36,7 @@ func (a *application) openEditor(key, src string) {
 	if k := customs[key]; k != nil && k.custom != "" {
 		data, err := os.ReadFile(k.custom)
 		if err != nil {
-			a.notify("读不了 "+filepath.Base(k.custom)+"："+err.Error(), "")
+			a.notify(lang.F("读不了 %s：%s", filepath.Base(k.custom), err.Error()), "")
 			return
 		}
 		src = string(data)
@@ -48,7 +49,7 @@ func (a *application) openEditor(key, src string) {
 	if key == "" {
 		ed.saved = ""
 	}
-	ed.st = &editor.State{Buffer: buf, Label: "Pine 代码", TabSize: 4, Indent: editor.IndentSpaces, SoftWrap: true, NoScrollPastEnd: true}
+	ed.st = &editor.State{Buffer: buf, Label: lang.T("Pine 代码"), TabSize: 4, Indent: editor.IndentSpaces, SoftWrap: true, NoScrollPastEnd: true}
 	ed.st.OnCompletion = func(r editor.CompletionRequest) { ed.st.ShowCompletions(r.Offset-len(r.Prefix), completions(r.Prefix)) }
 	a.ed, a.indList = ed, false
 }
@@ -97,9 +98,9 @@ func (a *application) editorDialog(c *ui.Context, t *ui.Theme, k palette) {
 	ed.check()
 	open := true
 	ww, wh := c.Size()
-	title := "新建指标"
+	title := lang.T("新建指标")
 	if kind := customs[ed.key]; kind != nil {
-		title = "编辑指标 · " + filepath.Base(kind.custom)
+		title = lang.F("编辑指标 · %s", filepath.Base(kind.custom))
 	}
 	ui.DialogBase(c.Key("script-editor"), &open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.45))
@@ -133,13 +134,13 @@ func (a *application) editorStatus(c *ui.Context, t *ui.Theme, k palette, ed *sc
 			ui.Text(c, ed.err).FontSize(12).TextColor(k.down).Grow(1).MinWidth(0)
 		case ed.script != nil:
 			s := ed.script
-			where := "画在 K 线上"
+			where := lang.T("画在 K 线上")
 			if !s.Overlay {
-				where = "画在 K 线下方单独一栏"
+				where = lang.T("画在 K 线下方单独一栏")
 			}
-			text := "能运行 · " + where
+			text := lang.F("能运行 · %s", where)
 			if n := len(s.Inputs); n > 0 {
-				text += " · " + itoa(n) + " 个参数"
+				text += " · " + lang.F("%d 个参数", n)
 			}
 			if len(s.Warnings) > 0 {
 				text += " · " + s.Warnings[0].Msg
@@ -163,11 +164,11 @@ func (a *application) editorButtons(c *ui.Context, t *ui.Theme, k palette, ed *s
 	armed := func(what string) bool { return ed.arming == what && time.Since(ed.armed) < 4*time.Second }
 	ui.Row(c).FillWidth().Height(64).Shrink(0).Padding(0, 20).Gap(10).AlignItems(ui.Center).Children(func() {
 		if kind != nil {
-			del := "删除"
+			del := lang.T("删除")
 			if armed("delete") {
-				del = "再点一次删除"
+				del = lang.T("再点一次删除")
 			}
-			b := ui.Button(c, del).Label("删除指标")
+			b := ui.Button(c, del).Label(lang.T("删除指标"))
 			if armed("delete") {
 				b.TextColor(k.down)
 			}
@@ -176,7 +177,7 @@ func (a *application) editorButtons(c *ui.Context, t *ui.Theme, k palette, ed *s
 					key := ed.key
 					a.later = append(a.later, func() {
 						if err := a.deleteScript(key); err != nil {
-							ed.message = "没删掉：" + err.Error()
+							ed.message = lang.F("没删掉：%s", err.Error())
 							return
 						}
 						a.ed = nil
@@ -185,14 +186,14 @@ func (a *application) editorButtons(c *ui.Context, t *ui.Theme, k palette, ed *s
 					ed.arming, ed.armed = "delete", time.Now()
 				}
 			}
-			if ui.Button(c, "在文件夹中显示").Clicked() {
+			if ui.Button(c, lang.T("在文件夹中显示")).Clicked() {
 				showInFolder(kind.custom)
 			}
 		}
 		ui.Box(c).Grow(1)
-		cancel := "取消"
+		cancel := lang.T("取消")
 		if armed("cancel") {
-			cancel = "放弃修改"
+			cancel = lang.T("放弃修改")
 		}
 		if ui.Button(c, cancel).Clicked() {
 			a.closeEditor(armed("cancel"))
@@ -201,12 +202,12 @@ func (a *application) editorButtons(c *ui.Context, t *ui.Theme, k palette, ed *s
 			src := ed.st.Buffer.String()
 			key, err := a.saveScript(ed.key, src)
 			if err != nil {
-				ed.message = "没存上：" + err.Error()
+				ed.message = lang.F("没存上：%s", err.Error())
 				return
 			}
 			ed.key, ed.saved = key, src
 			k, _ := kindOf(key)
-			ed.message = "已保存到 " + filepath.Base(k.custom)
+			ed.message = lang.F("已保存到 %s", filepath.Base(k.custom))
 			if add {
 				if !onChart && k.broken == "" {
 					a.addIndicator(k)
@@ -214,13 +215,13 @@ func (a *application) editorButtons(c *ui.Context, t *ui.Theme, k palette, ed *s
 				a.ed = nil
 			}
 		}
-		if ui.Button(c, "保存").Label("保存指标").Clicked() {
+		if ui.Button(c, lang.T("保存")).Label(lang.T("保存指标")).Clicked() {
 			a.later = append(a.later, func() { save(false) })
 		}
 		if ed.err == "" {
-			label := "保存并加到图上"
+			label := lang.T("保存并加到图上")
 			if onChart {
-				label = "保存并关闭"
+				label = lang.T("保存并关闭")
 			}
 			if ui.PrimaryButton(c, label).Clicked() {
 				a.later = append(a.later, func() { save(true) })

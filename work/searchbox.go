@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // The search box is OpenBar's own, not a TextInput: an input method's
@@ -402,7 +404,7 @@ func (a *application) searchField(c *ui.Context, t *ui.Theme, k palette) ui.Elem
 	b.sync(a.query)
 	b.svc = c.Services()
 	el := ui.Box(c.Key("query")).Grow(1).MinWidth(0).FillHeight().Focusable().FocusRing(false).
-		Role(ui.RoleTextField).Label("搜索交易对、期货、美股").Value(a.query).Cursor(ui.CursorText).
+		Role(ui.RoleTextField).Label(lang.T("搜索交易对、期货、美股")).Value(a.query).Cursor(ui.CursorText).
 		HandleInput(a.searchInput)
 	b.focused = el.Focused()
 	if !b.focused { // input methods drop their composition with the focus
@@ -433,7 +435,7 @@ func (a *application) searchField(c *ui.Context, t *ui.Theme, k palette) ui.Elem
 	el.TextCaret(ui.Rect{X: cx - b.scroll, Y: top, W: 1, H: lineH})
 	focused, scroll, composed := b.focused, b.scroll, utf8.RuneCountInString(b.compose)
 	xs := b.xs
-	place := ui.Shape("代码、拼音或中文：PEPE、NQ、英伟达", searchFont)
+	place := ui.Shape(lang.T("代码、拼音或中文：PEPE、NQ、英伟达"), searchFont)
 	el.Draw(func(p *ui.Painter, r ui.Rect) {
 		base := r.Y + top + m.Ascent
 		p.Clip(r, 0, func() {

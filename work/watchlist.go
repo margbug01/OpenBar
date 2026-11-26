@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -160,7 +161,7 @@ var chevronIcon = svg("<path d='m6 3.5 4.5 4.5-4.5 4.5'/>")
 func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette) {
 	rows := a.watchRows()
 	if len(rows) == 0 {
-		ui.Text(c, "在上面搜索币、期货或美股，点一下就会加进来").FontSize(12).TextColor(t.TextMuted).Padding(12)
+		ui.Text(c, lang.T("在上面搜索币、期货或美股，点一下就会加进来")).FontSize(12).TextColor(t.TextMuted).Padding(12)
 		return
 	}
 	l := &a.watchList
@@ -215,7 +216,7 @@ func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette) {
 func (a *application) sectionHeading(c *ui.Context, t *ui.Theme, k palette, r watchRow) (clicked bool, dropped string) {
 	folded := slices.Contains(a.set.Folded, r.sec.key)
 	h := ui.Row(c.Key("sec-"+r.sec.key)).FillWidth().Height(30).Shrink(0).Padding(0, 12, 0, 8).Gap(6).AlignItems(ui.Center).
-		Background(k.bg).Cursor(ui.CursorPointer).Label(r.sec.label).Drag(sectionDrag{r.sec.key})
+		Background(k.bg).Cursor(ui.CursorPointer).Label(lang.T(r.sec.label)).Drag(sectionDrag{r.sec.key})
 	if over, ok := ui.DragOver[sectionDrag](h); ok && over.key != r.sec.key {
 		h.Background(k.chosen)
 	} else if h.Hovered() {
@@ -224,9 +225,9 @@ func (a *application) sectionHeading(c *ui.Context, t *ui.Theme, k palette, r wa
 	if got, ok := ui.Drop[sectionDrag](h); ok && got.key != r.sec.key {
 		dropped = got.key
 	}
-	tip := "点一下收起，拖动标题可以调换分区的顺序"
+	tip := lang.T("点一下收起，拖动标题可以调换分区的顺序")
 	if folded {
-		tip = "点一下展开，拖动标题可以调换分区的顺序"
+		tip = lang.T("点一下展开，拖动标题可以调换分区的顺序")
 	}
 	h.Tooltip(tip).Children(func() {
 		angle := float32(90)
@@ -234,7 +235,7 @@ func (a *application) sectionHeading(c *ui.Context, t *ui.Theme, k palette, r wa
 			angle = 0
 		}
 		ui.Icon(c, chevronIcon).Size(10, 10).Shrink(0).TextColor(t.TextMuted).Rotate(angle)
-		ui.Text(c, r.sec.label).FontSize(12).FontWeight(600).TextColor(t.TextMuted).SingleLine()
+		ui.Text(c, lang.T(r.sec.label)).FontSize(12).FontWeight(600).TextColor(t.TextMuted).SingleLine()
 		ui.Text(c, strconv.Itoa(r.n)).FontSize(11).FontFeatures("tnum").TextColor(k.muted).SingleLine()
 	})
 	return h.Clicked(), dropped

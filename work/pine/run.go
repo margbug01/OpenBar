@@ -1,10 +1,10 @@
 package pine
 
 import (
-	"fmt"
 	"math"
 	"time"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -188,7 +188,7 @@ const loopLimit = 200_000
 
 func (m *Machine) loop(n int) {
 	if n >= loopLimit {
-		panic(&RunError{Bar: m.i, Msg: fmt.Sprintf("循环跑了 %d 次还没停，OpenBar 把它停下了", loopLimit)})
+		panic(&RunError{Bar: m.i, Msg: lang.F("循环跑了 %d 次还没停，OpenBar 把它停下了", loopLimit)})
 	}
 }
 
@@ -250,7 +250,7 @@ func (s *Script) Run(m *Machine, bars []market.Bar, inputs []float64, from int, 
 				m.Err = e
 				return
 			}
-			m.Err = &RunError{Bar: m.i, Msg: fmt.Sprint("脚本出错：", r)}
+			m.Err = &RunError{Bar: m.i, Msg: lang.F("脚本出错：%v", r)}
 		}
 	}()
 	for i := from; i < n; i++ {

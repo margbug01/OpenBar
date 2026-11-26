@@ -198,12 +198,12 @@ func TestInkSetting(t *testing.T) {
 	st.Ink, st.InkUp = "", hexColor{}
 	tt := newTester(a, false)
 	openSettings(t, tt, "商品")
-	if _, ok := tt.Find("文字涨"); ok {
+	if _, ok := tt.Find("文字上涨颜色"); ok {
 		t.Fatal("colors to pick while automatic")
 	}
 	click(t, tt, labelOf(inkModes, ""))
 	click(t, tt, "自定义")
-	if _, ok := tt.Find("文字涨"); st.Ink != "custom" || !ok {
+	if _, ok := tt.Find("文字上涨颜色"); st.Ink != "custom" || !ok {
 		t.Fatalf("after 自定义: ink %q, colors to pick %v", st.Ink, ok)
 	}
 	click(t, tt, "取消")

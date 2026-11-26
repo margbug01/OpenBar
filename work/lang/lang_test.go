@@ -11,10 +11,21 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode"
 )
 
-// Every Chinese text the code hands T or F has its English, taking the same
-// arguments.
+// says are the functions that say an argument in the language shown, by its
+// index: T and F, and the helpers that hand theirs to T.
+var says = map[string][]int{
+	"T": {0}, "F": {0}, "errAt": {1}, "warn": {1},
+	"row": {1}, "checkRow": {2}, "section": {2}, "triCheck": {2}, "boolCheck": {2},
+	"dialogHeader": {3, 4}, "dropdown": {1}, "intChoice": {1}, "well": {1},
+	"legendButton": {4}, "toolButton": {4}, "barButton": {4, 5}, "cornerButton": {2, 3},
+	"header": {2, 3}, "link": {1, 2}, "lineRow": {0}, "margin": {0, 3},
+}
+
+// Every Chinese text the code hands T, F or a helper saying it has its
+// English, taking the same arguments.
 func TestEnglishForEveryText(t *testing.T) {
 	verbs := regexp.MustCompile(`%[-+# 0]*[0-9.*]*[a-zA-Z%]`)
 	seen := 0
@@ -38,25 +49,37 @@ func TestEnglishForEveryText(t *testing.T) {
 			if !ok || len(call.Args) == 0 {
 				return true
 			}
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "T" && sel.Sel.Name != "F" {
-				return true
+			var name string
+			switch fn := call.Fun.(type) {
+			case *ast.Ident:
+				name = fn.Name
+			case *ast.SelectorExpr:
+				name = fn.Sel.Name
+				if x, ok := fn.X.(*ast.Ident); (name == "T" || name == "F") && (!ok || x.Name != "lang") {
+					return true
+				}
 			}
-			if x, ok := sel.X.(*ast.Ident); !ok || x.Name != "lang" {
-				return true
-			}
-			lit, ok := call.Args[0].(*ast.BasicLit)
-			if !ok || lit.Kind != token.STRING {
-				return true
-			}
-			s, _ := strconv.Unquote(lit.Value)
-			seen++
-			e, ok := en[s]
-			switch {
-			case !ok:
-				t.Errorf("%s: no English for %q", fset.Position(lit.Pos()), s)
-			case sel.Sel.Name == "F" && !slices.Equal(sortedVerbs(verbs, s), sortedVerbs(verbs, e)):
-				t.Errorf("%s: %q and %q take different arguments", fset.Position(lit.Pos()), s, e)
+			format := name == "F" || name == "errAt" || name == "warn"
+			for _, i := range says[name] {
+				if i >= len(call.Args) {
+					continue
+				}
+				lit, ok := call.Args[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				s, _ := strconv.Unquote(lit.Value)
+				if !hasHan(s) {
+					continue
+				}
+				seen++
+				e, ok := en[s]
+				switch {
+				case !ok:
+					t.Errorf("%s: no English for %q", fset.Position(lit.Pos()), s)
+				case format && !slices.Equal(sortedVerbs(verbs, s), sortedVerbs(verbs, e)):
+					t.Errorf("%s: %q and %q take different arguments", fset.Position(lit.Pos()), s, e)
+				}
 			}
 			return true
 		})
@@ -65,6 +88,15 @@ func TestEnglishForEveryText(t *testing.T) {
 	if seen == 0 {
 		t.Fatal("found no texts")
 	}
+}
+
+func hasHan(s string) bool {
+	for _, r := range s {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
 }
 
 // sortedVerbs are the verbs of a format, sorted: English may put them in

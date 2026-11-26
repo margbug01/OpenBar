@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"candle/lang"
 	"candle/pine"
 )
 
@@ -36,7 +38,7 @@ func customKind(key string) *indKind {
 		return k
 	}
 	name := strings.TrimPrefix(key, "pine:")
-	return &indKind{key: key, short: name, name: name, category: "自定义", broken: "找不到脚本文件 " + name + ".pine"}
+	return &indKind{key: key, short: name, name: name, category: "自定义", broken: lang.F("找不到脚本文件 %s.pine", name)}
 }
 
 // customList is the user's scripts in the order of their names.
@@ -117,7 +119,7 @@ func compileFile(f scriptFile, before *indKind) *indKind {
 // errorText is a script's error with the line it is on.
 func errorText(src string, err error) string {
 	if e, ok := err.(*pine.Error); ok {
-		return fmt.Sprintf("第 %d 行：%s", pine.Line(src, e.Start), e.Msg)
+		return lang.F("第 %d 行：%s", pine.Line(src, e.Start), e.Msg)
 	}
 	return err.Error()
 }
@@ -180,15 +182,15 @@ func (a *application) takeScripts(files map[string]scriptFile, first bool) {
 	slices.SortFunc(added, func(x, y *indKind) int { return cmp.Compare(x.key, y.key) })
 	switch {
 	case len(added) > 3:
-		a.notify(fmt.Sprintf("文件夹里多了 %d 个指标，在「指标 › 自定义」里添加", len(added)), "")
+		a.notify(lang.F("文件夹里多了 %d 个指标，在「指标 › 自定义」里添加", len(added)), "")
 	case len(added) > 0:
 		for _, k := range added {
 			if k.broken != "" {
-				a.notify("「"+k.name+"」有错，"+k.broken, k.key)
+				a.notify(lang.F("「%s」有错，%s", k.name, k.broken), k.key)
 				continue
 			}
 			a.addIndicator(k)
-			a.notify("已把「"+k.name+"」加到图上", "")
+			a.notify(lang.F("已把「%s」加到图上", k.name), "")
 		}
 	}
 	a.writeStatus()
@@ -214,7 +216,7 @@ func (a *application) notify(text, edit string) {
 func (a *application) saveScript(key, src string) (string, error) {
 	dir := a.indicatorsDir()
 	if dir == "" {
-		return "", fmt.Errorf("没有放指标的文件夹")
+		return "", errors.New(lang.T("没有放指标的文件夹"))
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -223,7 +225,7 @@ func (a *application) saveScript(key, src string) (string, error) {
 	if k := customs[key]; k != nil && k.custom != "" {
 		file = k.custom
 	} else {
-		name := "我的指标"
+		name := lang.T("我的指标")
 		if s, err := pine.Compile(src); err == nil {
 			name = s.Title
 		}
@@ -275,7 +277,7 @@ func fileName(title string) string {
 	}, strings.TrimSpace(title))
 	title = strings.Trim(title, ". ")
 	if title == "" {
-		title = "我的指标"
+		title = lang.T("我的指标")
 	}
 	return shorten(title, 60)
 }
@@ -329,7 +331,7 @@ var trashFile = func(path string) error { return mygo.Shell.TrashItem(path) }
 func (a *application) importClipboard() {
 	src := strings.TrimSpace(readClipboard())
 	if src == "" {
-		a.notify("剪贴板里没有文字，先在 TradingView 或编辑器里复制指标的代码", "")
+		a.notify(lang.T("剪贴板里没有文字，先在 TradingView 或编辑器里复制指标的代码"), "")
 		return
 	}
 	if _, err := pine.Compile(src); err != nil {
@@ -338,12 +340,12 @@ func (a *application) importClipboard() {
 	}
 	key, err := a.saveScript("", src+"\n")
 	if err != nil {
-		a.notify("没存上："+err.Error(), "")
+		a.notify(lang.F("没存上：%s", err.Error()), "")
 		return
 	}
 	k, _ := kindOf(key)
 	a.addIndicator(k)
-	a.notify("已从剪贴板导入「"+k.name+"」，加到了图上", "")
+	a.notify(lang.F("已从剪贴板导入「%s」，加到了图上", k.name), "")
 }
 
 var readClipboard = func() string { return mygo.Clipboard.ReadText() }
@@ -395,11 +397,18 @@ func (a *application) writeStatus() {
 
 const readmeVersion = "openbar-indicators-readme 1"
 
-// writeReadme puts the folder's README there, or a newer one over an older.
+// writeReadme puts the folder's README there in the language shown, or a
+// newer one, or one in the other language, over what is there. Its first
+// line says which.
 func writeReadme(dir string) {
+	text := readme
+	if lang.English() {
+		text = readmeEn
+	}
+	first, _, _ := strings.Cut(text, "\n")
 	p := filepath.Join(dir, "README.md")
-	if data, err := os.ReadFile(p); err == nil && strings.Contains(string(data), readmeVersion) {
+	if data, err := os.ReadFile(p); err == nil && strings.HasPrefix(string(data), first+"\n") {
 		return
 	}
-	os.WriteFile(p, []byte(readme), 0o644)
+	os.WriteFile(p, []byte(text), 0o644)
 }

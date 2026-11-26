@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -508,9 +509,9 @@ func (a *application) cellFrame(c *ui.Context, k palette, i int, hovered bool) {
 	if !hovered && a.maxed < 0 {
 		return
 	}
-	label, icon := "最大化这个图表", maximizeIcon
+	label, icon := lang.T("最大化这个图表"), maximizeIcon
 	if a.maxed >= 0 {
-		label, icon = "还原布局", restoreIcon
+		label, icon = lang.T("还原布局"), restoreIcon
 	}
 	top := float32(6) // under the bar of favorite tools when that is here
 	at := ui.Rect{X: a.bounds.X + a.bounds.W - axisW - 30, Y: a.bounds.Y + top, W: 24, H: 24}
@@ -542,7 +543,7 @@ func (a *application) maximize(i int) {
 func (a *application) layoutButton(c *ui.Context, t *ui.Theme, k palette) {
 	root, n := layoutOf(a.set.Layout)
 	b := ui.ButtonBase(c.Key("layouts")).Height(28).Padding(0, 8).Margin(0, 6, 0, 0).Center().Radius(4).
-		Cursor(ui.CursorPointer).Label("选择布局").Tooltip("选择布局：一个窗口看多个图表")
+		Cursor(ui.CursorPointer).Label(lang.T("选择布局")).Tooltip(lang.T("选择布局：一个窗口看多个图表"))
 	switch {
 	case a.layoutMenu:
 		b.Background(k.chosen)
@@ -575,7 +576,7 @@ func (a *application) layoutChoices(c *ui.Context, t *ui.Theme, k palette) {
 					root, _ := layoutOf(lk.id)
 					chosen := lk.id == id
 					b := ui.ButtonBase(c.Key("layout-"+lk.id)).Size(34, 28).Center().Radius(4).Cursor(ui.CursorPointer).
-						Label("布局 " + lk.id)
+						Label(lang.F("布局 %s", lk.id))
 					switch {
 					case chosen:
 						b.Background(k.chosen)
@@ -597,7 +598,7 @@ func (a *application) layoutChoices(c *ui.Context, t *ui.Theme, k palette) {
 			})
 		}
 		ui.Box(c).FillWidth().Height(1).Margin(6, 0).Background(k.line)
-		ui.Text(c, "同步（其他图表跟着当前图表）").FontSize(12).TextColor(t.TextMuted).Padding(0, 6, 4, 6)
+		ui.Text(c, lang.T("同步（其他图表跟着当前图表）")).FontSize(12).TextColor(t.TextMuted).Padding(0, 6, 4, 6)
 		ui.Grid(c).Columns(2).Gap(6).Padding(0, 6, 4, 6).Children(func() {
 			sync := &a.set.Sync
 			for _, o := range []struct {
@@ -607,10 +608,10 @@ func (a *application) layoutChoices(c *ui.Context, t *ui.Theme, k palette) {
 			}{
 				{&sync.Symbol, "品种", "换品种时所有图表一起换", func() { a.syncCharts(true, false) }},
 				{&sync.Crosshair, "十字线", "鼠标在一个图表上，其他图表在同一时间画竖线", nil},
-				{&sync.Interval, "周期", "换周期时所有图表一起换", func() { a.syncCharts(false, true) }},
+				{&sync.Interval, "周期|同步", "换周期时所有图表一起换", func() { a.syncCharts(false, true) }},
 				{&sync.Time, "时间", "拖动或缩放一个图表，其他图表跟着到同一时间", func() { a.on(a.activeCell(), a.syncTime) }},
 			} {
-				cb := ui.Checkbox(c.Key("sync-"+o.name), o.on, o.name).Tooltip(o.tip)
+				cb := ui.Checkbox(c.Key("sync-"+o.name), o.on, lang.T(o.name)).Tooltip(lang.T(o.tip))
 				if cb.Changed() {
 					a.save()
 					if *o.on && o.then != nil {

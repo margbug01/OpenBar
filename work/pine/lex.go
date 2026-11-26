@@ -17,6 +17,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"candle/lang"
 )
 
 type tokKind uint8
@@ -51,8 +53,10 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Msg }
 
+// errAt is the problem format says, written in Chinese, in the language
+// OpenBar shows.
 func errAt(t token, format string, args ...any) *Error {
-	return &Error{Start: t.start, End: t.end, Msg: fmt.Sprintf(format, args...)}
+	return &Error{Start: t.start, End: t.end, Msg: lang.F(format, args...)}
 }
 
 // Line is the line, from 1, that byte offset off of src is on.
@@ -162,7 +166,7 @@ func tokenize(s string, base int) ([]token, error) {
 				b.WriteByte(s[j])
 			}
 			if j >= len(s) {
-				return nil, &Error{Start: base + i, End: base + len(s), Msg: "字符串没有结束的引号"}
+				return nil, &Error{Start: base + i, End: base + len(s), Msg: lang.T("字符串没有结束的引号")}
 			}
 			toks = append(toks, token{kind: tkStr, text: b.String(), start: base + i, end: base + j + 1})
 			i = j + 1
@@ -172,7 +176,7 @@ func tokenize(s string, base int) ([]token, error) {
 				j++
 			}
 			if n := j - i - 1; n != 6 && n != 8 {
-				return nil, &Error{Start: base + i, End: base + j, Msg: "颜色要写成 #RRGGBB 或 #RRGGBBAA"}
+				return nil, &Error{Start: base + i, End: base + j, Msg: lang.T("颜色要写成 #RRGGBB 或 #RRGGBBAA")}
 			}
 			toks = append(toks, token{kind: tkColor, text: s[i:j], start: base + i, end: base + j})
 			i = j
@@ -195,7 +199,7 @@ func tokenize(s string, base int) ([]token, error) {
 			}
 			var v float64
 			if _, err := fmt.Sscan(s[i:j], &v); err != nil {
-				return nil, &Error{Start: base + i, End: base + j, Msg: "看不懂的数字 " + s[i:j]}
+				return nil, &Error{Start: base + i, End: base + j, Msg: lang.F("看不懂的数字 %s", s[i:j])}
 			}
 			toks = append(toks, token{kind: tkNum, num: v, text: s[i:j], start: base + i, end: base + j})
 			i = j
@@ -236,7 +240,7 @@ func tokenize(s string, base int) ([]token, error) {
 			}
 			if op == "" {
 				r, n := utf8.DecodeRuneInString(s[i:])
-				return nil, &Error{Start: base + i, End: base + i + n, Msg: fmt.Sprintf("看不懂的符号 %q", r)}
+				return nil, &Error{Start: base + i, End: base + i + n, Msg: lang.F("看不懂的符号 %q", r)}
 			}
 			toks = append(toks, token{kind: tkOp, text: op, start: base + i, end: base + i + len(op)})
 			i += len(op)

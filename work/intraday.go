@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -49,7 +50,7 @@ func (a *application) openIntraday(x, y float32) bool {
 	base, _ := a.names(a.symbol)
 	at := time.UnixMilli(b.T).In(a.set.Chart.loc())
 	d := &intraday{
-		title: base + a.after(a.symbol) + " 分时 · " + at.Format("2006-01-02") + " 周" + weekdays[at.Weekday()],
+		title: lang.F("%s 分时 · %s %s", base+a.after(a.symbol), at.Format("2006-01-02"), weekday(at)),
 		day:   b, decimals: a.chartDecimals(b.C), loading: true,
 	}
 	if i > 0 {
@@ -69,7 +70,7 @@ func (a *application) openIntraday(x, y float32) bool {
 			}
 			d.loading, d.bars, d.iv = false, bars, iv
 			if err != nil {
-				d.err = shorten(err.Error(), 160)
+				d.err = shorten(errText(err), 160)
 			}
 		})
 	})
@@ -167,11 +168,11 @@ func (a *application) intradayDialog(c *ui.Context, t *ui.Theme, k palette) {
 			msg, detail := "", d.err
 			switch {
 			case d.loading:
-				msg = "正在加载分时…"
+				msg = lang.T("正在加载分时…")
 			case d.err != "":
-				msg = "分时没加载上"
+				msg = lang.T("分时没加载上")
 			case len(d.bars) == 0:
-				msg, detail = "这一天的分时拿不到", "数据源只留最近一段时间的分钟线（东方财富约一个半月、Yahoo 两个月），更早的日子没有"
+				msg, detail = lang.T("这一天的分时拿不到"), lang.T("数据源只留最近一段时间的分钟线（东方财富约一个半月、Yahoo 两个月），更早的日子没有")
 			}
 			if msg != "" {
 				box.Children(func() {
@@ -199,20 +200,20 @@ func (d *intraday) summary(k palette) []ui.Span {
 	}
 	col := k.move(b.C - ref)
 	out := []ui.Span{
-		span("开 ", 13, k.muted, 400), span(f(b.O)+"   ", 13, col, 400),
-		span("高 ", 13, k.muted, 400), span(f(b.H)+"   ", 13, col, 400),
-		span("低 ", 13, k.muted, 400), span(f(b.L)+"   ", 13, col, 400),
-		span("收 ", 13, k.muted, 400), span(f(b.C)+"   ", 13, col, 400),
+		span(lang.T("开")+" ", 13, k.muted, 400), span(f(b.O)+"   ", 13, col, 400),
+		span(lang.T("高")+" ", 13, k.muted, 400), span(f(b.H)+"   ", 13, col, 400),
+		span(lang.T("低")+" ", 13, k.muted, 400), span(f(b.L)+"   ", 13, col, 400),
+		span(lang.T("收")+" ", 13, k.muted, 400), span(f(b.C)+"   ", 13, col, 400),
 	}
 	if d.prev > 0 {
 		out = append(out, span(formatSigned(b.C-d.prev, d.decimals)+" ("+pctText((b.C/d.prev-1)*100, 2)+")   ", 13, col, 400))
 	}
-	out = append(out, span("量 ", 13, k.muted, 400), span(formatVolume(b.V), 13, k.text, 400))
+	out = append(out, span(lang.T("量")+" ", 13, k.muted, 400), span(formatVolume(b.V), 13, k.text, 400))
 	switch d.iv {
 	case "1m":
-		out = append(out, span("   · 1 分钟", 13, k.muted, 400))
+		out = append(out, span("   · "+lang.T("1 分钟"), 13, k.muted, 400))
 	case "5m":
-		out = append(out, span("   · 5 分钟（更细的已经没有了）", 13, k.muted, 400))
+		out = append(out, span("   · "+lang.T("5 分钟（更细的已经没有了）"), 13, k.muted, 400))
 	}
 	return out
 }
@@ -330,6 +331,6 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 	xx := mid(x(i))
 	dash(p, xx, plot.Y, xx, plot.Y+plot.H, px, k.cross, "")
 	p.Fill(ui.Rect{X: xx - 2, Y: y(b.C) - 2, W: 4, H: 4}, k.accent, 2)
-	label(p, plot.X+8, plot.Y+12, span(clock(b.T)+"   价 "+formatPrice(b.C, d.decimals)+"   均 "+formatPrice(avg[i], d.decimals)+"   "+
-		pctText((b.C/ref-1)*100, 2)+"   量 "+formatVolume(b.V), 12, k.text, 400), alignStart)
+	label(p, plot.X+8, plot.Y+12, span(clock(b.T)+"   "+lang.T("价")+" "+formatPrice(b.C, d.decimals)+"   "+lang.T("均")+" "+formatPrice(avg[i], d.decimals)+"   "+
+		pctText((b.C/ref-1)*100, 2)+"   "+lang.T("量")+" "+formatVolume(b.V), 12, k.text, 400), alignStart)
 }

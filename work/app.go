@@ -3,7 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
-	"fmt"
+	"errors"
 	"maps"
 	"math"
 	"os"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -291,7 +292,7 @@ func (a *application) feed(ctx context.Context, f *sharedFeed, feed market.Feed,
 		a.each(f, func() {
 			a.loading = false
 			if err != nil {
-				a.err = shorten(err.Error(), 160)
+				a.err = shorten(errText(err), 160)
 				return
 			}
 			a.bars, a.atStart = slices.Clone(bars), len(bars) < 1000
@@ -952,7 +953,8 @@ func (a *application) tick(sym string) float64 {
 }
 
 // after is what reads, muted, after a market's name: "/USDT" for a pair,
-// what it is for a future or a stock: " 纳指 E-mini", " Apple Inc.".
+// what it is for a future or a stock: " 纳指 E-mini", " Apple Inc.". In
+// English a US stock goes by its own name, not the Chinese one.
 func (a *application) after(sym string) string {
 	_, quote := a.names(sym)
 	if market.IsPerp(sym) {
@@ -965,23 +967,23 @@ func (a *application) after(sym string) string {
 	if i, ok := a.usByID[sym]; ok {
 		in = a.usList[i]
 	}
-	if zh, _, _ := strings.Cut(in.Alias, " "); zh != "" { // 英伟达, as the futures read in Chinese
+	if zh, _, _ := strings.Cut(in.Alias, " "); zh != "" && !lang.English() { // 英伟达, as the futures read in Chinese
 		return " " + zh
 	}
-	if zh := a.zhNames[sym]; zh != "" { // 闪迪, as Eastmoney calls it
+	if zh := a.zhNames[sym]; zh != "" && !lang.English() { // 闪迪, as Eastmoney calls it
 		return " " + zh
 	}
 	if s, ok := a.infos[sym]; ok && s.Desc != "" {
-		return " " + s.Desc
+		return " " + lang.T(s.Desc)
 	}
 	if in.Name != "" {
-		return " " + in.Name
+		return " " + lang.T(in.Name)
 	}
 	if n := a.usNames[sym]; n != "" {
 		return " " + n
 	}
 	if in, _ := market.InstrumentOf(sym); in.Name != "" {
-		return " " + in.Name
+		return " " + lang.T(in.Name)
 	}
 	return ""
 }
@@ -1013,26 +1015,26 @@ func (a *application) dayOf() func(int64) int64 {
 // 股票永续 or 商品永续.
 func (a *application) perpKind(sym string) string {
 	if s := a.infos[sym]; s.Desc != "" {
-		return s.Desc
+		return lang.T(s.Desc)
 	}
-	return "永续"
+	return lang.T("永续")
 }
 
 // venue is where sym trades, and how late its prices are, for the legend:
 // 上交所, 港交所, Cboe · 晚 15 分钟.
 func venue(sym string) string {
 	in, ok := market.InstrumentOf(sym)
-	where := cmp.Or(in.Venue, "美股")
+	where := lang.T(cmp.Or(in.Venue, "美股"))
 	switch {
 	case !ok && market.IsPerp(sym):
-		return "币安永续"
+		return lang.T("币安永续")
 	case !ok:
 		return "Binance"
 	case in.Future:
 		where = "CME"
 	}
 	if in.Delay > 0 {
-		return fmt.Sprintf("%s · 晚 %d 分钟", where, int(in.Delay.Minutes()))
+		return lang.F("%s · 晚 %d 分钟", where, int(in.Delay.Minutes()))
 	}
 	return where
 }
@@ -1042,11 +1044,11 @@ func lateWhat(sym string) string {
 	in, _ := market.InstrumentOf(sym)
 	switch {
 	case in.Future:
-		return "CME 期货"
+		return lang.T("CME 期货")
 	case in.Index:
-		return in.Venue + " 指数"
+		return lang.F("%s 指数", lang.T(in.Venue))
 	}
-	return in.Venue + "股票"
+	return lang.F("%s股票", lang.T(in.Venue))
 }
 
 // volumeUnit is what a bar's volume counts: coins, contracts or shares.
@@ -1055,11 +1057,11 @@ func (a *application) volumeUnit(sym string) string {
 	if in, ok := market.InstrumentOf(sym); ok {
 		switch {
 		case in.Future:
-			return "手"
+			return lang.T("手")
 		case in.Index:
 			return ""
 		}
-		return "股"
+		return lang.T("股")
 	}
 	return base
 }
@@ -1067,6 +1069,15 @@ func (a *application) volumeUnit(sym string) string {
 func (a *application) intervalMs() int64 {
 	iv, _ := intervalOf(a.interval)
 	return iv.ms
+}
+
+// errText is what a feed's error says, for people: Eastmoney's resting in
+// the language shown, the rest as the source put it.
+func errText(err error) string {
+	if errors.Is(err, market.ErrEastmoneyResting) {
+		return lang.T(market.ErrEastmoneyResting.Error())
+	}
+	return err.Error()
 }
 
 func shorten(s string, n int) string {

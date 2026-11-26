@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // How each drawing looks, as TradingView's settings set it up: the line's
@@ -240,7 +242,7 @@ func (a *application) newDrawing(kind string, id int64, n int) drawing {
 	}
 	d.ID, d.Kind, d.Pts = id, kind, make([]point, n)
 	if kind == "text" && d.Text == "" {
-		d.Text = "文字"
+		d.Text = lang.T("文字")
 	}
 	return d
 }
@@ -252,7 +254,7 @@ func builtinDrawing(kind string) drawing {
 	case "fib":
 		d.Width, d.Levels = 1, defaultFibLevels()
 	case "text":
-		d.Text = "文字"
+		d.Text = lang.T("文字")
 	case "long", "short":
 		d.Width = 1
 	}
@@ -419,6 +421,6 @@ func trendStats(m mapper, p0, p1 point, dec int, angle float64) []string {
 	bars := int(math.Round(m.idx(p1.T) - m.idx(p0.T)))
 	return []string{
 		fmt.Sprintf("%s (%+.2f%%)", formatSigned(move, dec), pct),
-		fmt.Sprintf("%d 根K线 · %s · %.1f°", bars, spanText(p1.T-p0.T), angle),
+		lang.F("%d 根K线 · %s · %.1f°", bars, spanText(p1.T-p0.T), angle),
 	}
 }

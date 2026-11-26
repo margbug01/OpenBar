@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -286,11 +287,19 @@ func countdown(ms int64) string {
 	d, h, m, sec := s/86400, s/3600%24, s/60%60, s%60
 	switch {
 	case d > 0:
-		return fmt.Sprintf("%d天%02d时", d, h)
+		return lang.F("%d天%02d时", d, h)
 	case h > 0:
 		return fmt.Sprintf("%02d:%02d:%02d", h, m, sec)
 	}
 	return fmt.Sprintf("%02d:%02d", m, sec)
+}
+
+// monthText is a month as the time axis names it: 3月, Mar.
+func monthText(m time.Month) string {
+	if lang.English() {
+		return m.String()[:3]
+	}
+	return fmt.Sprintf("%d月", m)
 }
 
 // A tick labels bar i on the time axis. Its level is what changed there:
@@ -355,9 +364,9 @@ func timeTicks(bars []market.Bar, from, to int, ivMs int64, spacing float32, loc
 		case a.Year() != b.Year():
 			t.level, t.text = 4, strconv.Itoa(b.Year())
 		case a.Month() != b.Month():
-			t.level, t.text = 3, fmt.Sprintf("%d月", b.Month())
+			t.level, t.text = 3, monthText(b.Month())
 		case a.YearDay() != b.YearDay():
-			t.level, t.text = 2, fmt.Sprintf("%d日", b.Day())
+			t.level, t.text = 2, lang.F("%d日", b.Day())
 		default:
 			t.level, t.text = 1, clockText(b, clock12)
 		}

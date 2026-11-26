@@ -9,6 +9,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -568,7 +569,7 @@ func (a *application) drawRange(p *ui.Painter, plot ui.Rect, m mapper, k palette
 	ink := onColor(col)
 	lines := []ui.Span{
 		span(fmt.Sprintf("%s (%+.2f%%)", formatSigned(move, dec), pct), size, ink, 600),
-		span(fmt.Sprintf("%d 根K线 · %s", bars, spanText(to.T-from.T)), size-0.5, ink, 0),
+		span(lang.F("%d 根K线 · %s", bars, spanText(to.T-from.T)), size-0.5, ink, 0),
 	}
 	var bw, bh float32
 	for _, sp := range lines {
@@ -601,15 +602,15 @@ func spanText(ms int64) string {
 	d, h, m := s/86400, s/3600%24, s/60%60
 	switch {
 	case d > 0 && h > 0:
-		return fmt.Sprintf("%d天%d小时", d, h)
+		return lang.F("%d天%d小时", d, h)
 	case d > 0:
-		return fmt.Sprintf("%d天", d)
+		return lang.F("%d天", d)
 	case h > 0 && m > 0:
-		return fmt.Sprintf("%d小时%d分", h, m)
+		return lang.F("%d小时%d分", h, m)
 	case h > 0:
-		return fmt.Sprintf("%d小时", h)
+		return lang.F("%d小时", h)
 	}
-	return fmt.Sprintf("%d分", m)
+	return lang.F("%d分", m)
 }
 
 // drawDrawingLabels puts where drawings are on the axes, as they show it:

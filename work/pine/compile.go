@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"candle/lang"
 )
 
 // What a compiled expression gives.
@@ -109,7 +111,7 @@ func Compile(src string) (*Script, error) {
 		return nil, err
 	}
 	if !s.declared {
-		return nil, &Error{Start: 0, End: min(len(src), 1), Msg: "缺少 indicator(\"名字\") 这一行"}
+		return nil, &Error{Start: 0, End: min(len(src), 1), Msg: lang.T("缺少 indicator(\"名字\") 这一行")}
 	}
 	s.run = run
 	return s, nil
@@ -966,7 +968,7 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 	if !ok {
 		switch x.fn {
 		case "strategy", "library":
-			return cx{}, errAt(x.t, "这是%s脚本，OpenBar 只跑指标（indicator）", map[string]string{"strategy": "策略", "library": "库"}[x.fn])
+			return cx{}, errAt(x.t, "这是%s脚本，OpenBar 只跑指标（indicator）", lang.T(map[string]string{"strategy": "策略", "library": "库"}[x.fn]))
 		case "barcolor", "alertcondition", "alert", "max_bars_back", "plotcandle", "plotbar":
 			if x.fn == "plotcandle" || x.fn == "plotbar" {
 				c.warn(x.t, "OpenBar 还不画 %s，会被跳过", x.fn)

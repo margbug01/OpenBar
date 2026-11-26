@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/pine"
 )
 
@@ -62,7 +63,7 @@ func (a *application) deleteIndicator(id int64) {
 // indicatorsButton opens the list of indicators to add.
 func (a *application) indicatorsButton(c *ui.Context, t *ui.Theme, k palette) {
 	b := ui.Row(c.Key("indicators")).Height(28).Padding(0, 10).Margin(0, 6).Gap(6).AlignItems(ui.Center).Radius(4).
-		Cursor(ui.CursorPointer).Label("指标").Tooltip("添加指标")
+		Cursor(ui.CursorPointer).Label(lang.T("指标")).Tooltip(lang.T("添加指标"))
 	switch {
 	case a.indList:
 		b.Background(k.chosen)
@@ -71,7 +72,7 @@ func (a *application) indicatorsButton(c *ui.Context, t *ui.Theme, k palette) {
 	}
 	b.Children(func() {
 		ui.Icon(c, fxIcon).Size(16, 16).TextColor(t.Text)
-		fixedText(c, ui.Span{Text: "指标", Size: 13, Weight: 500, Color: t.Text})
+		fixedText(c, ui.Span{Text: lang.T("指标"), Size: 13, Weight: 500, Color: t.Text})
 	})
 	if b.Clicked() {
 		a.indList, a.indFocus, a.indQuery = true, true, ""
@@ -186,7 +187,7 @@ func (a *application) legendRow(c *ui.Context, t *ui.Theme, k palette, ind *indi
 				col = a.plotBarColor(ind, kind, j, s.out[j], i).Alpha(1)
 			}
 			if shown > 1 {
-				text = pl.name + " " + text
+				text = lang.T(pl.name) + " " + text
 			}
 			if len(spans) > 0 {
 				text = "  " + text
@@ -198,6 +199,7 @@ func (a *application) legendRow(c *ui.Context, t *ui.Theme, k palette, ind *indi
 }
 
 func legendButton(c *ui.Context, t *ui.Theme, k palette, key, label string, icon *ui.SVG) ui.Element {
+	label = lang.T(label)
 	b := ui.ButtonBase(c.Key(key)).Size(20, 20).Shrink(0).Center().Radius(4).Cursor(ui.CursorPointer).Label(label).Tooltip(label)
 	if b.Hovered() {
 		b.Background(k.hover)
@@ -205,11 +207,12 @@ func legendButton(c *ui.Context, t *ui.Theme, k palette, key, label string, icon
 	return b.Children(func() { ui.Icon(c, icon).Size(13, 13).TextColor(t.TextMuted) })
 }
 
-// dialogHeader is a dialog's title and its close button, named closeLabel.
+// dialogHeader is a dialog's title and its close button, named closeLabel,
+// both in Chinese and said in the language shown.
 func dialogHeader(c *ui.Context, t *ui.Theme, k palette, title, closeLabel string, close func()) {
 	ui.Row(c).FillWidth().Height(56).Shrink(0).Padding(0, 14, 0, 24).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, title).FontSize(18).FontWeight(600).Grow(1)
-		x := ui.ButtonBase(c.Key(closeLabel)).Size(30, 30).Center().Radius(6).Cursor(ui.CursorPointer).Label(closeLabel)
+		ui.Text(c, lang.T(title)).FontSize(18).FontWeight(600).Grow(1)
+		x := ui.ButtonBase(c.Key(closeLabel)).Size(30, 30).Center().Radius(6).Cursor(ui.CursorPointer).Label(lang.T(closeLabel))
 		if x.Hovered() {
 			x.Background(k.hover)
 		}
@@ -230,7 +233,7 @@ func searchKinds(query string) []*indKind {
 	}
 	all = append(all, customList()...)
 	for _, k := range all {
-		if q == "" || strings.Contains(strings.ToLower(k.key+" "+k.short+" "+k.name+" "+k.alias+" "+k.category), q) {
+		if q == "" || strings.Contains(strings.ToLower(k.key+" "+k.short+" "+k.name+" "+k.alias+" "+k.category+" "+lang.T(k.name)), q) {
 			out = append(out, k)
 		}
 	}
@@ -247,7 +250,7 @@ func (a *application) indicatorsDialog(c *ui.Context, t *ui.Theme, k palette) {
 	ui.DialogBase(c.Key("indicators-dialog"), &a.indList, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.45))
 		panel.Width(520).Height(min(560, wh-48)).Radius(10).Background(k.bg).Border(1, k.line).
-			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label("添加指标")
+			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(lang.T("添加指标"))
 		ui.Column(c).FillWidth().FillHeight().Children(func() {
 			dialogHeader(c, t, k, "指标", "关闭指标列表", func() { a.indList = false })
 			hits := searchKinds(a.indQuery)
@@ -255,7 +258,7 @@ func (a *application) indicatorsDialog(c *ui.Context, t *ui.Theme, k palette) {
 				ui.Row(c).FillWidth().Height(34).Padding(0, 10).Gap(6).AlignItems(ui.Center).Radius(6).Background(k.field).Children(func() {
 					ui.Icon(c, searchIcon).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
 					in := ui.TextInput(c.Key("ind-query"), &a.indQuery).Grow(1).MinWidth(0).Background(ui.Transparent).Border(0, ui.Transparent).
-						Padding(0).FontSize(13).Placeholder("搜索指标，如 MA、MACD、布林").Label("搜索指标")
+						Padding(0).FontSize(13).Placeholder(lang.T("搜索指标，如 MA、MACD、布林")).Label(lang.T("搜索指标"))
 					if a.indFocus {
 						in.Focus()
 						a.indFocus = false
@@ -271,7 +274,7 @@ func (a *application) indicatorsDialog(c *ui.Context, t *ui.Theme, k palette) {
 				ui.Column(c).FillWidth().Padding(0, 16, 16, 16).Children(func() {
 					searching := strings.TrimSpace(a.indQuery) != ""
 					if len(hits) == 0 && searching {
-						ui.Text(c, "没有找到「"+strings.TrimSpace(a.indQuery)+"」").FontSize(13).TextColor(t.TextMuted).Padding(12, 8)
+						ui.Text(c, lang.F("没有找到「%s」", strings.TrimSpace(a.indQuery))).FontSize(13).TextColor(t.TextMuted).Padding(12, 8)
 					}
 					for _, cat := range categories {
 						var in []*indKind
@@ -282,7 +285,7 @@ func (a *application) indicatorsDialog(c *ui.Context, t *ui.Theme, k palette) {
 						}
 						switch {
 						case cat == "自定义" && len(in) == 0 && !searching:
-							ui.Text(c, "还没有自己的指标。可以新建、把 TradingView 上指标的代码复制后从剪贴板导入，或者让 Agent 把 .pine 文件写进指标文件夹（文件夹里的 README 写了怎么写）。").
+							ui.Text(c, lang.T("还没有自己的指标。可以新建、把 TradingView 上指标的代码复制后从剪贴板导入，或者让 Agent 把 .pine 文件写进指标文件夹（文件夹里的 README 写了怎么写）。")).
 								FontSize(12).TextColor(t.TextMuted).Padding(12, 12, 4, 12).FillWidth()
 						case len(in) > 0:
 							section(c, t, cat)
@@ -305,7 +308,7 @@ func (a *application) kindRow(c *ui.Context, t *ui.Theme, k palette, kind *indKi
 		}
 	}
 	row := ui.Row(c.Key("kind-"+kind.key)).FillWidth().Height(44).Shrink(0).Padding(0, 12).Gap(12).AlignItems(ui.Center).
-		Radius(6).Cursor(ui.CursorPointer).Label("添加 " + kind.short)
+		Radius(6).Cursor(ui.CursorPointer).Label(lang.F("添加 %s", kind.short))
 	if row.Hovered() {
 		row.Background(k.hover)
 	}
@@ -314,14 +317,14 @@ func (a *application) kindRow(c *ui.Context, t *ui.Theme, k palette, kind *indKi
 		if kind.broken != "" {
 			ui.Text(c, kind.broken).FontSize(12).TextColor(k.down).Grow(1).MinWidth(0).SingleLine()
 		} else {
-			ui.Text(c, kind.name).FontSize(13).TextColor(t.TextMuted).Grow(1).MinWidth(0).SingleLine()
-			fixedText(c, span(map[bool]string{false: "主图", true: "副图"}[kind.pane], 11, t.TextMuted, 0))
+			ui.Text(c, lang.T(kind.name)).FontSize(13).TextColor(t.TextMuted).Grow(1).MinWidth(0).SingleLine()
+			fixedText(c, span(map[bool]string{false: lang.T("主图"), true: lang.T("副图")}[kind.pane], 11, t.TextMuted, 0))
 		}
 		if count > 0 {
-			fixedText(c, span(fmt.Sprintf("已添加 %d", count), 12, k.accent, 0))
+			fixedText(c, span(lang.F("已添加 %d", count), 12, k.accent, 0))
 		}
 		if kind.custom != "" {
-			if legendButton(c, t, k, "edit-"+kind.key, "编辑 "+kind.short, editIcon).Clicked() {
+			if legendButton(c, t, k, "edit-"+kind.key, lang.F("编辑 %s", kind.short), editIcon).Clicked() {
 				a.later = append(a.later, func() { a.openEditor(kind.key, "") })
 			}
 		}
@@ -373,9 +376,9 @@ func (a *application) indicatorDialog(c *ui.Context, t *ui.Theme, k palette) {
 	ui.DialogBase(c.Key("indicator-dialog"), &a.indDialog, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.45))
 		panel.Width(480).MaxHeight(wh-48).Radius(10).Background(k.bg).Border(1, k.line).
-			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(kind.short + " 设置")
+			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(lang.F("%s 设置", kind.short))
 		ui.Column(c).FillWidth().Children(func() {
-			dialogHeader(c, t, k, kind.short+" · "+kind.name, "关闭指标设置", func() { a.closeIndicator(false) })
+			dialogHeader(c, t, k, kind.short+" · "+lang.T(kind.name), "关闭指标设置", func() { a.closeIndicator(false) })
 			ui.Column(c).FillWidth().Padding(0, 28, 16, 24).Children(func() {
 				if len(kind.params) > 0 {
 					section(c, t, "参数")
@@ -385,13 +388,13 @@ func (a *application) indicatorDialog(c *ui.Context, t *ui.Theme, k palette) {
 				}
 				if kind.source {
 					row(c, "源", func() {
-						a.dropdown(c, kind.short+" 源", sources, ind.Source, func(v string) { ind.Source = v }).Width(170).MinWidth(170)
+						a.dropdown(c, kind.short+" 源", sources, ind.Source, func(v string) { ind.Source = v }).Width(170).MinWidth(170).Label(lang.F("%s 源", kind.short))
 					})
 				}
 				if kind.offset {
 					row(c, "偏移", func() {
-						ui.NumberInput(c.Key("ind-offset-"+id), &ind.Offset, -maxOffset, maxOffset, 1).Width(170).Shrink(0).Label(kind.short + " 偏移")
-						ui.Text(c, "根K线").FontSize(13).TextColor(t.TextMuted)
+						ui.NumberInput(c.Key("ind-offset-"+id), &ind.Offset, -maxOffset, maxOffset, 1).Width(170).Shrink(0).Label(lang.F("%s 偏移", kind.short))
+						ui.Text(c, lang.T("根K线")).FontSize(13).TextColor(t.TextMuted)
 					})
 				}
 				section(c, t, "样式")
@@ -402,7 +405,7 @@ func (a *application) indicatorDialog(c *ui.Context, t *ui.Theme, k palette) {
 					key := "ind-" + id + "-" + strconv.Itoa(j)
 					if pl.dynamic {
 						row(c, pl.name, func() {
-							ui.Text(c, "颜色随脚本").FontSize(12).TextColor(t.TextMuted).Width(60)
+							ui.Text(c, lang.T("颜色随脚本")).FontSize(12).TextColor(t.TextMuted).Width(60)
 							widthButtons(c, t, k, key+"-width", ind.Widths[j], func(w float64) { ind.Widths[j] = w })
 						})
 						continue
@@ -413,32 +416,32 @@ func (a *application) indicatorDialog(c *ui.Context, t *ui.Theme, k palette) {
 							up, down = "零轴上方", "零轴下方"
 						}
 						row(c, pl.name, func() {
-							a.well(c, key+"-up", ind.color(kind, j), func(h hexColor) { ind.Colors[j] = h }).Label(pl.name + up + "颜色").Tooltip(up)
-							a.well(c, key+"-down", ind.downColor(kind, j), func(h hexColor) { ind.Downs[j] = h }).Label(pl.name + down + "颜色").Tooltip(down)
+							a.well(c, key+"-up", ind.color(kind, j), func(h hexColor) { ind.Colors[j] = h }).Label(lang.F("%s%s颜色", lang.T(pl.name), lang.T(up))).Tooltip(lang.T(up))
+							a.well(c, key+"-down", ind.downColor(kind, j), func(h hexColor) { ind.Downs[j] = h }).Label(lang.F("%s%s颜色", lang.T(pl.name), lang.T(down))).Tooltip(lang.T(down))
 						})
 						continue
 					}
 					row(c, pl.name, func() {
-						a.well(c, key+"-color", ind.color(kind, j), func(h hexColor) { ind.Colors[j] = h }).Label(pl.name + "线色").Tooltip("线色")
+						a.well(c, key+"-color", ind.color(kind, j), func(h hexColor) { ind.Colors[j] = h }).Label(lang.F("%s线色", lang.T(pl.name))).Tooltip(lang.T("线色"))
 						widthButtons(c, t, k, key+"-width", ind.Widths[j], func(w float64) { ind.Widths[j] = w })
 					})
 				}
 			})
 			ui.Row(c).FillWidth().Height(64).Shrink(0).Padding(0, 20).Gap(10).AlignItems(ui.Center).BorderWidth(1, 0, 0, 0).BorderColor(k.line).Children(func() {
-				if ui.Button(c, "恢复默认").Clicked() {
+				if ui.Button(c, lang.T("恢复默认")).Clicked() {
 					fresh := indicator{ID: ind.ID, Kind: ind.Kind, Hidden: ind.Hidden, Height: ind.Height}
 					fresh.fix()
 					*ind = fresh
 				}
-				if kind.custom != "" && ui.Button(c, "编辑代码").Clicked() {
+				if kind.custom != "" && ui.Button(c, lang.T("编辑代码")).Clicked() {
 					key := kind.key
 					a.later = append(a.later, func() { a.closeIndicator(true); a.openEditor(key, "") })
 				}
 				ui.Box(c).Grow(1)
-				if ui.Button(c, "取消").Clicked() {
+				if ui.Button(c, lang.T("取消")).Clicked() {
 					a.closeIndicator(false)
 				}
-				if ui.PrimaryButton(c, "确认").Clicked() {
+				if ui.PrimaryButton(c, lang.T("确认")).Clicked() {
 					a.closeIndicator(true)
 				}
 			})
@@ -451,7 +454,7 @@ func (a *application) indicatorDialog(c *ui.Context, t *ui.Theme, k palette) {
 func widthButtons(c *ui.Context, t *ui.Theme, k palette, key string, cur float64, set func(float64)) {
 	for _, w := range []float64{1, 2, 3, 4} {
 		b := ui.ButtonBase(c.Key(fmt.Sprintf("%s-%g", key, w))).Size(28, 28).Center().Radius(4).Cursor(ui.CursorPointer).
-			Label(fmt.Sprintf("线宽 %g", w)).Tooltip(fmt.Sprintf("线宽 %g", w))
+			Label(lang.F("线宽 %g", w)).Tooltip(lang.F("线宽 %g", w))
 		switch {
 		case cur == w:
 			b.Background(k.chosen)
@@ -471,14 +474,15 @@ var editIcon = svg("<path d='M10.5 3 13 5.5 6 12.5H3.5V10z'/><path d='M9 4.5 11.
 // box, a choice or a color.
 func (a *application) paramRow(c *ui.Context, kind *indKind, ind *indicator, id string, j int, pd paramDef) {
 	key := "ind-param-" + id + "-" + strconv.Itoa(j)
-	label := kind.short + " " + pd.name
+	name := lang.T(pd.name)
+	label := kind.short + " " + name
 	switch pd.kind {
 	case paramFixed:
 		return
 	case paramBool:
 		on := ind.Params[j] != 0
 		ui.Row(c).FillWidth().MinHeight(40).AlignItems(ui.Center).Children(func() {
-			ui.Checkbox(c.Key(key), &on, pd.name).Label(label)
+			ui.Checkbox(c.Key(key), &on, name).Label(label)
 		})
 		ind.Params[j] = map[bool]float64{true: 1, false: 0}[on]
 		return
@@ -486,13 +490,13 @@ func (a *application) paramRow(c *ui.Context, kind *indKind, ind *indicator, id 
 	row(c, pd.name, func() {
 		switch pd.kind {
 		case paramChoice:
-			a.dropdown(c, label, pd.opts, strconv.Itoa(int(ind.Params[j])), func(v string) {
+			a.dropdown(c, key, pd.opts, strconv.Itoa(int(ind.Params[j])), func(v string) {
 				ind.Params[j], _ = strconv.ParseFloat(v, 64)
-			}).Width(220).MinWidth(170)
+			}).Width(220).MinWidth(170).Label(label)
 		case paramNumChoice:
-			a.dropdown(c, label, pd.opts, strconv.FormatFloat(ind.Params[j], 'f', -1, 64), func(v string) {
+			a.dropdown(c, key, pd.opts, strconv.FormatFloat(ind.Params[j], 'f', -1, 64), func(v string) {
 				ind.Params[j], _ = strconv.ParseFloat(v, 64)
-			}).Width(170).MinWidth(170)
+			}).Width(170).MinWidth(170).Label(label)
 		case paramColor:
 			col, _ := toColor(ind.Params[j])
 			a.well(c, key, col, func(h hexColor) {
@@ -502,7 +506,7 @@ func (a *application) paramRow(c *ui.Context, kind *indKind, ind *indicator, id 
 			ui.NumberInput(c.Key(key), &ind.Params[j], pd.lo, pd.hi, pd.step).Width(170).Shrink(0).Label(label)
 		}
 		if pd.tip != "" {
-			ui.Text(c, pd.tip).FontSize(12).TextColor(c.Theme().TextMuted).Grow(1).MinWidth(0)
+			ui.Text(c, lang.T(pd.tip)).FontSize(12).TextColor(c.Theme().TextMuted).Grow(1).MinWidth(0)
 		}
 	})
 }
@@ -511,14 +515,14 @@ func (a *application) paramRow(c *ui.Context, kind *indKind, ind *indicator, id 
 // from the clipboard, and open the folder they are in.
 func (a *application) customButtons(c *ui.Context, t *ui.Theme, k palette) {
 	ui.Row(c).FillWidth().Shrink(0).Padding(0, 24, 8, 24).Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "自己的指标（Pine Script）").FontSize(12).TextColor(t.TextMuted).Grow(1)
-		if ui.Button(c, "新建").Label("新建指标").Clicked() {
-			a.later = append(a.later, func() { a.openEditor("", newScript) })
+		ui.Text(c, lang.T("自己的指标（Pine Script）")).FontSize(12).TextColor(t.TextMuted).Grow(1)
+		if ui.Button(c, lang.T("新建")).Label(lang.T("新建指标")).Clicked() {
+			a.later = append(a.later, func() { a.openEditor("", newScript()) })
 		}
-		if ui.Button(c, "从剪贴板导入").Clicked() {
+		if ui.Button(c, lang.T("从剪贴板导入")).Clicked() {
 			a.later = append(a.later, a.importClipboard)
 		}
-		if ui.Button(c, "打开文件夹").Clicked() {
+		if ui.Button(c, lang.T("打开文件夹")).Clicked() {
 			if dir := a.indicatorsDir(); dir != "" {
 				os.MkdirAll(dir, 0o755)
 				writeReadme(dir)
@@ -530,8 +534,22 @@ func (a *application) customButtons(c *ui.Context, t *ui.Theme, k palette) {
 
 var openPath = func(path string) { mygo.Shell.OpenPath(path) }
 
-// newScript is what a new indicator starts as.
-const newScript = `//@version=6
+// newScript is what a new indicator starts as, in the language shown.
+func newScript() string {
+	if lang.English() {
+		return newScriptEn
+	}
+	return newScriptZh
+}
+
+const newScriptEn = `//@version=6
+indicator("My indicator", overlay = true)
+length = input.int(20, "Length", minval = 1)
+src = input.source(close, "Source")
+plot(ta.sma(src, length), "MA", color = color.orange, linewidth = 2)
+`
+
+const newScriptZh = `//@version=6
 indicator("我的指标", overlay = true)
 length = input.int(20, "周期", minval = 1)
 src = input.source(close, "源")

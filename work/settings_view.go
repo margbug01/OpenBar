@@ -93,7 +93,7 @@ var languages = []option{{"", "跟随系统"}, {"zh-Hans", "简体中文"}, {"en
 
 // gearButton opens the settings.
 func (a *application) gearButton(c *ui.Context, t *ui.Theme, k palette) {
-	b := ui.ButtonBase(c.Key("gear")).Size(30, 30).Shrink(0).Center().Radius(6).Cursor(ui.CursorPointer).Label("图表设置").Tooltip("图表设置")
+	b := ui.ButtonBase(c.Key("gear")).Size(30, 30).Shrink(0).Center().Radius(6).Cursor(ui.CursorPointer).Label(lang.T("图表设置")).Tooltip(lang.T("图表设置"))
 	if b.Hovered() {
 		b.Background(k.hover)
 	}
@@ -113,7 +113,7 @@ func (a *application) settingsDialog(c *ui.Context, t *ui.Theme, k palette) {
 	ui.DialogBase(c.Key("settings"), &a.dialog, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.45))
 		panel.Width(720).Height(min(680, wh-48)).Radius(10).Background(k.bg).Border(1, k.line).
-			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label("图表设置")
+			Shadow(0, 12, 40, 0, ui.RGBA(0, 0, 0, 0.35)).Label(lang.T("图表设置"))
 		ui.Column(c).FillWidth().FillHeight().Children(func() {
 			dialogHeader(c, t, k, "设置", "关闭设置", func() { a.closeSettings(false) })
 			ui.Row(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
@@ -128,16 +128,16 @@ func (a *application) settingsDialog(c *ui.Context, t *ui.Theme, k palette) {
 				})
 			})
 			ui.Row(c).FillWidth().Height(64).Shrink(0).Padding(0, 20).Gap(10).AlignItems(ui.Center).BorderWidth(1, 0, 0, 0).BorderColor(k.line).Children(func() {
-				if settingsPages[a.page].label != "关于" && ui.Button(c, "恢复默认").Clicked() {
+				if settingsPages[a.page].label != "关于" && ui.Button(c, lang.T("恢复默认")).Clicked() {
 					theme := a.set.Chart.Theme
 					a.set.Chart = defaultStyle()
 					a.set.Chart.Theme = theme
 				}
 				ui.Box(c).Grow(1)
-				if ui.Button(c, "取消").Clicked() {
+				if ui.Button(c, lang.T("取消")).Clicked() {
 					a.closeSettings(false)
 				}
-				if ui.PrimaryButton(c, "确认").Clicked() {
+				if ui.PrimaryButton(c, lang.T("确认")).Clicked() {
 					a.closeSettings(true)
 				}
 			})
@@ -146,7 +146,8 @@ func (a *application) settingsDialog(c *ui.Context, t *ui.Theme, k palette) {
 }
 
 func (a *application) pageButton(c *ui.Context, t *ui.Theme, k palette, i int, label string, icon *ui.SVG) {
-	b := ui.Row(c.Key("page-"+label)).FillWidth().Height(36).Padding(0, 10).Gap(10).AlignItems(ui.Center).Radius(6).Cursor(ui.CursorPointer).Label(label)
+	key, label := label, lang.T(label)
+	b := ui.Row(c.Key("page-"+key)).FillWidth().Height(36).Padding(0, 10).Gap(10).AlignItems(ui.Center).Radius(6).Cursor(ui.CursorPointer).Label(label)
 	col, weight := t.Text, 400
 	switch {
 	case i == a.page:
@@ -164,14 +165,17 @@ func (a *application) pageButton(c *ui.Context, t *ui.Theme, k palette, i int, l
 	}
 }
 
+// The helpers below take what they say in Chinese, as their keys, and say
+// it in the language shown.
+
 func section(c *ui.Context, t *ui.Theme, title string) {
-	ui.Text(c, title).FontSize(12).TextColor(t.TextMuted).Padding(20, 0, 6, 0)
+	ui.Text(c, lang.T(title)).FontSize(12).TextColor(t.TextMuted).Padding(20, 0, 6, 0)
 }
 
 // row is a setting: its name, and the controls beside it.
 func row(c *ui.Context, name string, controls func()) {
 	ui.Row(c).FillWidth().MinHeight(40).Gap(12).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, name).FontSize(13).Width(150).Shrink(0)
+		ui.Text(c, lang.T(name)).FontSize(13).Width(150).Shrink(0)
 		ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(controls)
 	})
 }
@@ -179,7 +183,7 @@ func row(c *ui.Context, name string, controls func()) {
 // checkRow is a setting switched by a check box, with what else it takes.
 func checkRow(c *ui.Context, on *bool, name string, controls func()) {
 	ui.Row(c).FillWidth().MinHeight(40).Gap(12).AlignItems(ui.Center).Children(func() {
-		ui.Checkbox(c.Key("check-"+name), on, name).Width(150).Shrink(0)
+		ui.Checkbox(c.Key("check-"+name), on, lang.T(name)).Width(150).Shrink(0)
 		if controls != nil {
 			ui.Row(c).Grow(1).Gap(8).AlignItems(ui.Center).Children(controls)
 		}
@@ -194,15 +198,15 @@ func (a *application) dropdown(c *ui.Context, key string, opts []option, cur str
 		ch = &choice[string]{}
 		a.picks[key] = ch
 	}
-	p, picked, changed := ch.bind(labelOf(opts, cur))
+	p, picked, changed := ch.bind(lang.T(labelOf(opts, cur)))
 	labels := make([]string, len(opts))
 	for i, o := range opts {
-		labels[i] = o.label
-		if changed && o.label == picked {
+		labels[i] = lang.T(o.label)
+		if changed && labels[i] == picked {
 			set(o.key)
 		}
 	}
-	return ui.Select(c.Key(key), p, labels).Width(240).Label(key)
+	return ui.Select(c.Key(key), p, labels).Width(240).Label(lang.T(key))
 }
 
 // well is a color well showing cur; set takes the color the user picks.
@@ -216,13 +220,13 @@ func (a *application) well(c *ui.Context, key string, cur ui.Color, set func(hex
 	if changed {
 		set(hexColor(picked))
 	}
-	return ui.ColorWell(c.Key(key), p).Label(key)
+	return ui.ColorWell(c.Key(key), p).Label(lang.T(key))
 }
 
 // upDown is a pair of color wells, for rising and for falling bars.
 func (a *application) upDown(c *ui.Context, key string, up, down *hexColor, defUp, defDown ui.Color) {
-	a.well(c, key+"涨", up.or(defUp), func(h hexColor) { *up = h }).Tooltip("上涨")
-	a.well(c, key+"跌", down.or(defDown), func(h hexColor) { *down = h }).Tooltip("下跌")
+	a.well(c, key+"涨", up.or(defUp), func(h hexColor) { *up = h }).Label(lang.F("%s%s颜色", lang.T(key), lang.T("上涨"))).Tooltip(lang.T("上涨"))
+	a.well(c, key+"跌", down.or(defDown), func(h hexColor) { *down = h }).Label(lang.F("%s%s颜色", lang.T(key), lang.T("下跌"))).Tooltip(lang.T("下跌"))
 }
 
 func (a *application) symbolPage(c *ui.Context, t *ui.Theme, k palette) {
@@ -231,13 +235,13 @@ func (a *application) symbolPage(c *ui.Context, t *ui.Theme, k palette) {
 	row(c, "图表类型", func() { a.dropdown(c, "图表类型", chartTypes, st.Type, func(v string) { st.Type = v }) })
 	row(c, "快速配色", func() {
 		def := paletteFor(t.Dark)
-		if ui.Button(c, "绿涨红跌").Clicked() {
+		if ui.Button(c, lang.T("绿涨红跌")).Clicked() {
 			st.colors(hexColor{}, hexColor{}, hexColor{})
 		}
-		if ui.Button(c, "红涨绿跌").Clicked() {
+		if ui.Button(c, lang.T("红涨绿跌")).Clicked() {
 			st.colors(hexColor(def.down), hexColor(def.up), hexColor{})
 		}
-		if ui.Button(c, "白涨黑跌").Clicked() {
+		if ui.Button(c, lang.T("白涨黑跌")).Clicked() {
 			st.mono(t.Dark)
 		}
 	})
@@ -248,7 +252,7 @@ func (a *application) symbolPage(c *ui.Context, t *ui.Theme, k palette) {
 	// label and line, the legend, the top bar's price, the watchlist's moves.
 	row(c, "标签和文字", func() {
 		a.dropdown(c, "标签和文字", inkModes, st.Ink, func(v string) { st.Ink = v }).Width(200).
-			Tooltip("价格标签、图例和涨跌数字用的颜色；实体颜色和背景太接近时，自动换成边框色")
+			Tooltip(lang.T("价格标签、图例和涨跌数字用的颜色；实体颜色和背景太接近时，自动换成边框色"))
 		if st.Ink == "custom" {
 			auto := *st
 			auto.Ink = ""
@@ -266,7 +270,7 @@ func (a *application) symbolPage(c *ui.Context, t *ui.Theme, k palette) {
 	row(c, "时区", func() { a.dropdown(c, "时区", timeZones, st.Zone, func(v string) { st.Zone = v }) })
 	row(c, "一天的起点", func() {
 		a.dropdown(c, "一天的起点", dayStarts(st), st.BreakZone, func(v string) { st.BreakZone = v }).Width(300).
-			Tooltip("自选和顶栏里币安交易对的涨跌幅从这个时刻的价格算起（搜索结果是 24 小时）；交易日分隔线也画在这个时刻，只在 1 天以下的周期画。美股、期货、A 股、港股跟昨收比，分隔线按各自的交易时段画，不看这里")
+			Tooltip(lang.T("自选和顶栏里币安交易对的涨跌幅从这个时刻的价格算起（搜索结果是 24 小时）；交易日分隔线也画在这个时刻，只在 1 天以下的周期画。美股、期货、A 股、港股跟昨收比，分隔线按各自的交易时段画，不看这里"))
 	})
 }
 
@@ -310,10 +314,10 @@ func (a *application) scalesPage(c *ui.Context, t *ui.Theme, k palette) {
 // dayStarts are when a day may begin for the day lines. UTC's midnight
 // reads in the chart's time too, unless the chart tells time in UTC.
 func dayStarts(st *style) []option {
-	utc := "UTC 0 点（币安日线开盘）"
+	utc := lang.T("UTC 0 点（币安日线开盘）")
 	now := time.Now().UTC()
 	if at := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).In(st.loc()); at.Hour() != 0 || at.Minute() != 0 {
-		utc = "UTC 0 点（图表时间 " + at.Format("15:04") + "，币安日线开盘）"
+		utc = lang.F("UTC 0 点（图表时间 %s，币安日线开盘）", at.Format("15:04"))
 	}
 	return []option{{"", "图表时区 0 点"}, {"utc", utc}}
 }
@@ -353,8 +357,8 @@ func (a *application) canvasPage(c *ui.Context, t *ui.Theme, k palette) {
 	section(c, t, "边距")
 	margin := func(name string, v *float64, hi float64, unit string) {
 		row(c, name, func() {
-			ui.NumberInput(c.Key("margin-"+name), v, 0, hi, 1).Width(170).Shrink(0).Label(name)
-			ui.Text(c, unit).FontSize(13).TextColor(t.TextMuted)
+			ui.NumberInput(c.Key("margin-"+name), v, 0, hi, 1).Width(170).Shrink(0).Label(lang.T(name))
+			ui.Text(c, lang.T(unit)).FontSize(13).TextColor(t.TextMuted)
 		})
 	}
 	margin("顶部", &st.TopMargin, 40, "%")
