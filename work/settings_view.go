@@ -1,10 +1,13 @@
 package main
 
 import (
+	"cmp"
 	"strconv"
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"candle/lang"
 )
 
 // The settings dialog, after TradingView's: its pages on the left, a page's
@@ -50,6 +53,7 @@ func (ch *choice[T]) bind(current T) (p *T, picked T, changed bool) {
 
 func (a *application) openSettings() {
 	a.before, a.editing, a.dialog = a.set.Chart, true, true
+	a.langBefore = a.lang.chosen()
 }
 
 // closeSettings keeps the settings, or puts back what they were.
@@ -62,8 +66,30 @@ func (a *application) closeSettings(keep bool) {
 			applyTheme(a.before.Theme)
 		}
 		a.set.Chart = a.before
+		if a.lang.chosen() != a.langBefore {
+			a.lang.choose(a.langBefore)
+		}
 	}
 }
+
+// language is the language OpenBar shows, as the user chose it: "" follows
+// the system's, else "zh-Hans" or "en". The app's is MyGo's, which keeps
+// the choice for the next launches; ownLanguage stands in for it in tests.
+type language struct {
+	chosen func() string
+	choose func(tag string)
+}
+
+func ownLanguage() language {
+	var tag string
+	return language{
+		chosen: func() string { return tag },
+		choose: func(t string) { tag = t; lang.Set(cmp.Or(t, "zh-Hans")) },
+	}
+}
+
+// languages are those OpenBar speaks, each named in itself.
+var languages = []option{{"", "跟随系统"}, {"zh-Hans", "简体中文"}, {"en", "English"}}
 
 // gearButton opens the settings.
 func (a *application) gearButton(c *ui.Context, t *ui.Theme, k palette) {
@@ -301,6 +327,7 @@ func (a *application) canvasPage(c *ui.Context, t *ui.Theme, k palette) {
 			applyTheme(v)
 		})
 	})
+	row(c, "语言", func() { a.dropdown(c, "语言", languages, a.lang.chosen(), a.lang.choose) })
 	row(c, "背景", func() { a.well(c, "背景", st.Background.or(k.bg), func(h hexColor) { st.Background = h }) })
 	checkRow(c, &st.VertGrid, "垂直网格线", func() {
 		a.well(c, "垂直网格线颜色", st.VertColor.or(k.grid), func(h hexColor) { st.VertColor = h })

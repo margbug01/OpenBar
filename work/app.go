@@ -132,9 +132,12 @@ type application struct {
 	ownSave map[string]bool
 	ed      *scriptEditor
 
-	// The settings dialog: open, and the style as it was, for 取消.
+	// The settings dialog: open, and the style and the language as they
+	// were, for 取消.
 	dialog, editing bool
 	before          style
+	langBefore      string
+	lang            language
 	page            int
 	picks           map[string]*choice[string]
 	colors          map[string]*choice[ui.Color]
@@ -159,6 +162,7 @@ func newApplication(set settings, file string, bin market.Binance, post func(fun
 		feeds:   map[string]*sharedFeed{},
 		nextID:  maxDrawingID(set.Drawings),
 		icons:   newIcons("", bin.Icons, bin.Icon),
+		lang:    ownLanguage(),
 	}
 	for _, cs := range set.Charts {
 		a.cells = append(a.cells, newCell(cs, set.Chart))

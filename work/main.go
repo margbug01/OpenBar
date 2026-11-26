@@ -12,6 +12,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"candle/lang"
 	"candle/market"
 )
 
@@ -35,7 +36,14 @@ func main() {
 	})
 	a.upd = myGoUpdates()
 	a.icons.dir = iconDir()
-	a.setMenu()
+	// English for those who read no Chinese; Traditional Chinese readers
+	// get OpenBar's Simplified, and MyGo's own controls in Traditional.
+	mygo.App.SetLanguages("en", "zh-Hans", "zh-Hant")
+	a.lang = language{chosen: mygo.App.ChosenLocale, choose: mygo.App.SetLocale}
+	mygo.App.OnLocaleChanged(func(tag string) {
+		lang.Set(tag)
+		a.setMenu()
+	})
 	mygo.App.OnSecondInstance(func([]string, string) {
 		if win != nil {
 			win.Show()
@@ -44,6 +52,8 @@ func main() {
 		}
 	})
 	mygo.App.WhenReady(func() {
+		lang.Set(mygo.App.Locale())
+		a.setMenu()
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title: "OpenBar", Width: 1320, Height: 820, MinWidth: 960, MinHeight: 560, StateKey: "main",
 			TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: titleBarHeight,

@@ -4,10 +4,13 @@ import (
 	"runtime"
 
 	"github.com/egoist/mygo"
+
+	"candle/lang"
 )
 
-// setMenu gives OpenBar a menu bar on macOS, in Chinese, with the settings in
-// the app menu. Windows has none: the title bar is the app's own.
+// setMenu gives OpenBar a menu bar on macOS, in the language it shows, with
+// the settings in the app menu; it is set again when the language changes.
+// Windows has none: the title bar is the app's own.
 //
 // It has no Edit menu. Its Undo, Copy and Paste would take Cmd+Z, Cmd+C and
 // Cmd+V before the window sees them and hand them only to a text input with
@@ -35,28 +38,28 @@ func (a *application) setMenu() {
 	}
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
 		{Label: "OpenBar", Submenu: []*mygo.MenuItem{
-			{Role: mygo.RoleAbout, Label: "关于 OpenBar"},
-			{Label: "检查更新…", Click: checkUpdate},
+			{Role: mygo.RoleAbout, Label: lang.T("关于 OpenBar")},
+			{Label: lang.T("检查更新…"), Click: checkUpdate},
 			mygo.Separator(),
-			{Label: "设置…", Accelerator: "CmdOrCtrl+,", Click: settings},
+			{Label: lang.T("设置…"), Accelerator: "CmdOrCtrl+,", Click: settings},
 			mygo.Separator(),
-			{Role: mygo.RoleServices, Label: "服务"},
+			{Role: mygo.RoleServices, Label: lang.T("服务")},
 			mygo.Separator(),
-			{Role: mygo.RoleHide, Label: "隐藏 OpenBar"},
-			{Role: mygo.RoleHideOthers, Label: "隐藏其他"},
-			{Role: mygo.RoleUnhide, Label: "全部显示"},
+			{Role: mygo.RoleHide, Label: lang.T("隐藏 OpenBar")},
+			{Role: mygo.RoleHideOthers, Label: lang.T("隐藏其他")},
+			{Role: mygo.RoleUnhide, Label: lang.T("全部显示")},
 			mygo.Separator(),
-			{Role: mygo.RoleQuit, Label: "退出 OpenBar"},
+			{Role: mygo.RoleQuit, Label: lang.T("退出 OpenBar")},
 		}},
-		{Label: "显示", Submenu: []*mygo.MenuItem{
-			{Role: mygo.RoleToggleFullScreen, Label: "进入全屏幕"},
+		{Label: lang.T("显示"), Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleToggleFullScreen, Label: lang.T("进入全屏幕")},
 		}},
-		{Label: "窗口", Submenu: []*mygo.MenuItem{
-			{Role: mygo.RoleMinimize, Label: "最小化"},
-			{Role: mygo.RoleZoom, Label: "缩放"},
+		{Label: lang.T("窗口"), Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleMinimize, Label: lang.T("最小化")},
+			{Role: mygo.RoleZoom, Label: lang.T("缩放")},
 			mygo.Separator(),
-			{Role: mygo.RoleClose, Label: "关闭"},
-			{Role: mygo.RoleFront, Label: "前置全部窗口"},
+			{Role: mygo.RoleClose, Label: lang.T("关闭")},
+			{Role: mygo.RoleFront, Label: lang.T("前置全部窗口")},
 		}},
 	}))
 }
