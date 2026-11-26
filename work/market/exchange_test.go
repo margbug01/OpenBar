@@ -145,7 +145,7 @@ func TestMexcREST(t *testing.T) {
 	ctx := context.Background()
 	var asked []string
 	c := answers(&asked,
-		"endTime=1795669199999", `[]`, // before the pair's first bar
+		"endTime=1795669200000&", `[]`, // before the pair's first bar
 		"/klines", `[[1795669200000,"60971.2","61070.16","60772.51","60807.01","124.16871541",1795672800000,"7562528.58"],[1795672800000,"60807.01","60809.13","60643.87","60671.64","7.73620065",1795676400000,"469535.53"]]`,
 		"/exchangeInfo", `{"symbols": [{"symbol": "PEPEUSDT", "status": "1", "baseAsset": "PEPE", "quoteAsset": "USDT", "quotePrecision": 9, "baseAssetPrecision": 0}]}`,
 		"/ticker/24hr", `[{"symbol": "ETHUSDT", "priceChange": "35.09", "priceChangePercent": "0.0212", "prevClosePrice": "1653.67", "lastPrice": "1688.76", "bidPrice": "1688.74", "bidQty": "6.06894", "askPrice": "1688.75", "askQty": "3.49625", "openPrice": "1653.67", "highPrice": "1729.14", "lowPrice": "1610", "volume": "185479.55249", "quoteVolume": "308554797.3", "openTime": 1795672952031, "closeTime": 1795672959085, "count": null}, {"symbol": "NTXUSDT", "priceChange": "0", "priceChangePercent": "0", "prevClosePrice": "0.000699", "lastPrice": "0.000699", "bidPrice": "0.00033", "bidQty": "38234.87", "askPrice": "0.0006", "askQty": "8000", "openPrice": "0.000699", "highPrice": "0.000699", "lowPrice": "0.000699", "volume": "0", "quoteVolume": "0", "openTime": 1795672923007, "closeTime": 1795672959084, "count": null}, {"symbol":"NEWUSDT","openPrice":"1","lastPrice":"1","quoteVolume":null}]`,
@@ -155,13 +155,13 @@ func TestMexcREST(t *testing.T) {
 	if err != nil || len(bars) != 2 || bars[1] != (Bar{T: 1795672800000, O: 60807.01, H: 60809.13, L: 60643.87, C: 60671.64, V: 7.73620065}) {
 		t.Fatalf("klines %+v, %v", bars, err)
 	}
-	if !strings.Contains(asked[0], "interval=60m") || !strings.Contains(asked[0], "startTime=1795665600001") || !strings.Contains(asked[0], "endTime=1795672800000") {
+	if !strings.Contains(asked[0], "interval=60m") || !strings.Contains(asked[0], "startTime=1795665600001") || !strings.Contains(asked[0], "endTime=1795672800001") {
 		t.Fatalf("asked %s", asked[0])
 	}
 	// 1000 bars take pages of 500 from the newest, until one is empty.
 	asked = nil
 	bars, err = m.Klines(ctx, "MEXC:BTCUSDT", "1w", 1795672800000, 1000)
-	if err != nil || len(bars) != 2 || len(asked) != 2 || !strings.Contains(asked[0], "limit=500") || !strings.Contains(asked[1], "endTime=1795669199999") || !strings.Contains(asked[0], "interval=1W") {
+	if err != nil || len(bars) != 2 || len(asked) != 2 || !strings.Contains(asked[0], "limit=500") || !strings.Contains(asked[1], "endTime=1795669200000") || !strings.Contains(asked[0], "interval=1W") {
 		t.Fatalf("pages %v: %d bars, %v", asked, len(bars), err)
 	}
 	syms, err := m.Symbols(ctx, "MEXC:PEPEUSDT")

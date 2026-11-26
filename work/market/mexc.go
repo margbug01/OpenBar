@@ -40,9 +40,10 @@ func (m Mexc) Klines(ctx context.Context, symbol, interval string, end int64, li
 	var bars []Bar
 	for len(bars) < limit {
 		n := min(mexcPage, limit-len(bars))
-		// MEXC reads a page on from its start; one n bars long has n at most.
+		// MEXC reads a page on from its start, up to before its end; one n
+		// bars long has n at most.
 		q := url.Values{"symbol": {Code(symbol)}, "interval": {iv.mexc}, "limit": {strconv.Itoa(n)},
-			"startTime": {strconv.FormatInt(end-int64(n)*iv.ms+1, 10)}, "endTime": {strconv.FormatInt(end, 10)}}
+			"startTime": {strconv.FormatInt(end+1-int64(n)*iv.ms, 10)}, "endTime": {strconv.FormatInt(end+1, 10)}}
 		body, err := get(ctx, m.HTTP, mexcREST+"/api/v3/klines?"+q.Encode())
 		if err != nil {
 			return nil, fmt.Errorf("mexc klines: %w", err)
