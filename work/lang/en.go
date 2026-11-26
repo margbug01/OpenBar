@@ -22,4 +22,7 @@ var en = map[string]string{
 	// Common.
 	"取消": "Cancel",
 	"确认": "OK",
+
+	// Exchanges.
+	"%s 永续": "%s Perpetual",
 }

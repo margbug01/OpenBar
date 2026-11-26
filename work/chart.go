@@ -400,13 +400,14 @@ func dayBreaks(bars []market.Bar, from, to int, ivMs int64, dayOf func(int64) in
 	return out
 }
 
-// searchAll finds markets of every source by name: Binance's pairs and
-// perpetuals (BTCUSDT.P, among pairs), the CME futures and the US stocks. The code itself (BTC for BTCUSDT) comes
+// searchAll finds markets of every source by name: the exchanges' pairs and
+// perpetuals (BTCUSDT.P, BYBIT:BTCUSDT, among pairs), the CME futures and the US stocks. The code itself (BTC for BTCUSDT) comes
 // first, then codes starting with the query, then those holding it or a
 // Chinese name holding it (纳指, 苹果) or its pinyin (nz, pingguo), then
 // names starting with it (apple:
 // Apple Inc.), then names with another word starting with it. On a par, pairs before
-// futures before stocks; USDT pairs before others, busiest first; the stocks
+// futures before stocks; USDT pairs before others, busiest first, a pair on
+// several exchanges together, Binance's first; the stocks
 // looked up most first, then the shortest codes.
 //
 // found is what Eastmoney's search found for the query, best first: US
@@ -475,10 +476,23 @@ func searchAll(query string, pairs []market.Ticker, futures, stocks, found []mar
 	type hit struct {
 		t                   market.Ticker
 		rank, from, pop, at int
-		usd                 float64 // a pair's day in dollars
+		usd                 float64 // a pair's day in dollars, its busiest exchange's
+		pair                string  // a pair's name on every exchange: "BTCUSDT", "BTCUSDT.P"
+		ex                  int     // a pair's exchange in market.Exchanges
 	}
 	var hits []hit
 	usd := dollars(pairs)
+	// A pair goes by its busiest exchange's day, the exchanges' together and
+	// Binance's first.
+	busiest := map[string]float64{}
+	pairOf := func(id string) (string, int) {
+		ex, _ := market.ExchangeOf(id)
+		return strings.TrimPrefix(id, ex.Prefix), slices.IndexFunc(market.Exchanges, func(e market.Exchange) bool { return e.Prefix == ex.Prefix })
+	}
+	for _, t := range pairs {
+		p, _ := pairOf(t.Symbol)
+		busiest[p] = max(busiest[p], usd(t))
+	}
 	// The Chinese names of the US stocks Eastmoney found, for the perpetuals
 	// following them; by code as Binance writes it (BRKB).
 	foundZh := map[string]string{}
@@ -516,10 +530,10 @@ func searchAll(query string, pairs []market.Ticker, futures, stocks, found []mar
 		return r
 	}
 	for _, t := range pairs {
-		code, from := t.Symbol, 0
-		perp := market.IsPerp(code)
+		code, from := market.Code(t.Symbol), 0
+		perp := market.IsPerp(t.Symbol)
 		if perp { // BTCUSDT.P reads as BTCUSDT, after the spot pair
-			code, from = strings.TrimSuffix(code, ".P"), 1
+			from = 1
 		}
 		r := rankOf(code)
 		// The coin itself, in whatever money (BTCUSDT, BTCFDUSD, BTCTRY), and
@@ -537,7 +551,8 @@ func searchAll(query string, pairs []market.Ticker, futures, stocks, found []mar
 		if r > 0 && !strings.HasSuffix(code, "USDT") {
 			r += 2
 		}
-		hits = append(hits, hit{t: t, rank: r, from: from, usd: usd(t)})
+		p, ex := pairOf(t.Symbol)
+		hits = append(hits, hit{t: t, rank: r, from: from, usd: busiest[p], pair: p, ex: ex})
 	}
 	for i, in := range futures {
 		if r := marketRank(in, in.Name+" "+in.Alias); r >= 0 {
@@ -591,7 +606,7 @@ func searchAll(query string, pairs []market.Ticker, futures, stocks, found []mar
 	}
 	slices.SortStableFunc(hits, func(a, b hit) int {
 		return cmp.Or(cmp.Compare(a.rank, b.rank), cmp.Compare(a.from, b.from), cmp.Compare(b.usd, a.usd),
-			cmp.Compare(a.pop, b.pop), cmp.Compare(a.at, b.at), strings.Compare(a.t.Symbol, b.t.Symbol))
+			strings.Compare(a.pair, b.pair), cmp.Compare(a.ex, b.ex), cmp.Compare(a.pop, b.pop), cmp.Compare(a.at, b.at), strings.Compare(a.t.Symbol, b.t.Symbol))
 	})
 	out := make([]market.Ticker, 0, min(len(hits), limit))
 	for _, h := range hits[:min(len(hits), limit)] {
@@ -696,7 +711,7 @@ func dollars(pairs []market.Ticker) func(market.Ticker) float64 {
 		}
 	}
 	return func(t market.Ticker) float64 {
-		_, quote := splitPair(strings.TrimSuffix(t.Symbol, ".P"))
+		_, quote := splitPair(market.Code(t.Symbol))
 		switch quote {
 		case "USDT", "USDC", "FDUSD", "TUSD", "USD1", "DAI":
 			return t.QuoteVolume
