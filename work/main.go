@@ -10,6 +10,8 @@ import (
 	_ "time/tzdata" // the zones the settings offer, on machines without Go
 
 	"github.com/egoist/mygo"
+	_ "github.com/egoist/mygo/locales/zh-Hans" // MyGo's own controls and menus in Chinese
+	_ "github.com/egoist/mygo/locales/zh-Hant"
 	"github.com/egoist/mygo/ui"
 
 	"candle/lang"
