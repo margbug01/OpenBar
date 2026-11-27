@@ -89,6 +89,23 @@ func rolling(def string, f func(w []float64) float64) *bfn {
 		if !given(src) || !given(ln) {
 			return cx{}, errAt(x.t, "%s 少了参数", x.fn)
 		}
+		if c.local > c.depth && src.hist != nil { // c.depth counts the functions among c.local
+			// In an if, a switch or a loop, the call may not run on every bar,
+			// and a window it kept would have holes: one of high, of a variable,
+			// is read from the source's own past instead.
+			hist := src.hist
+			return numX(func(m *Machine) float64 {
+				n := length(ln.f(m))
+				if n < 1 || m.i < n-1 {
+					return nan
+				}
+				w := make([]float64, n)
+				for k := range w {
+					w[n-1-k] = hist(m, k)
+				}
+				return f(w)
+			}), nil
+		}
 		rec, b := c.record(src)
 		return numX(func(m *Machine) float64 {
 			rec(m)

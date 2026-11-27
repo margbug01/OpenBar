@@ -100,3 +100,20 @@ func checkIncremental(t *testing.T, name, src string) {
 		}
 	}
 }
+
+// ta.highest and the other windows, called only on some bars, see the bars
+// before as the source has them, not just those they were called on.
+func TestWindowCalledSometimes(t *testing.T) {
+	_, m := run(t, `//@version=6
+indicator("x")
+float hi = na
+float avg = na
+if bar_index == 4
+    hi := ta.highest(3)
+    avg := ta.sma(close, 3)
+plot(hi)
+plot(avg)
+`, closes(5, 1, 9, 2, 3))
+	checkPlot(t, m, 0, na, na, na, na, 10) // high: 6 2 10 3 4
+	checkPlot(t, m, 1, na, na, na, na, 14.0/3)
+}
