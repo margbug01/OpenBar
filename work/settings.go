@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 )
 
 // settings are kept between runs in %APPDATA%\OpenBar\settings.json, and on
@@ -41,6 +42,10 @@ type settings struct {
 	// DrawDefaults are how the tools draw, by kind, as kept with 存为默认 in
 	// a drawing's settings: its look, not its points.
 	DrawDefaults map[string]drawing `json:",omitempty"`
+	// Templates are indicators kept by name, Workspaces layouts with their
+	// charts: see workspace.go.
+	Templates  []indTemplate `json:",omitempty"`
+	Workspaces []workspace   `json:",omitempty"`
 }
 
 // chartSettings are a chart's: its market, its bars and its indicators.
@@ -132,6 +137,7 @@ func loadSettings(file string) settings {
 		return drop
 	})
 	s.FavX, s.FavY = min(max(s.FavX, 0), 1), min(max(s.FavY, 0), 1)
+	fixKept(&s)
 	return s
 }
 
@@ -147,7 +153,9 @@ func (cs *chartSettings) fix() {
 }
 
 // saveSettings writes beside the file and renames over it, so a crash halfway
-// leaves the old one. An empty name saves nothing, for the tests.
+// leaves the old one. An empty name saves nothing, for the tests. On Windows
+// an antivirus or a synced folder can hold the file a moment, failing the
+// rename: it is tried a few more times, 150ms in all.
 func saveSettings(file string, s settings) error {
 	if file == "" {
 		return nil
@@ -168,5 +176,11 @@ func saveSettings(file string, s settings) error {
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, file)
+	for wait := 10 * time.Millisecond; ; wait *= 2 {
+		err := os.Rename(tmp, file)
+		if err == nil || wait > 80*time.Millisecond {
+			return err
+		}
+		time.Sleep(wait)
+	}
 }

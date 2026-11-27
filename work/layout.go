@@ -430,12 +430,7 @@ func (a *application) setLayout(id string) {
 	before := a.shownCells()
 	_, n := layoutOf(id)
 	for len(a.cells) < n {
-		cs := a.activeCell().saved()
-		cs.Indicators = slices.Clone(cs.Indicators)
-		for j := range cs.Indicators {
-			cs.Indicators[j] = cloneIndicator(cs.Indicators[j])
-		}
-		a.cells = append(a.cells, newCell(cs, a.set.Chart))
+		a.cells = append(a.cells, newCell(cloneChart(a.activeCell().saved()), a.set.Chart))
 	}
 	a.set.Layout, a.maxed = id, -1
 	for i := n; i < before; i++ {
@@ -620,6 +615,7 @@ func (a *application) layoutChoices(c *ui.Context, t *ui.Theme, k palette) {
 				}
 			}
 		})
+		a.workspaces(c, t, k)
 	})
 }
 

@@ -48,6 +48,10 @@ type application struct {
 	spawn func(func())     // starts background work; the tests drop it
 	file  string
 	set   settings
+	// saveErr is why the settings last failed to save, "" once they do;
+	// while it is not, the chart says so and saving is tried again.
+	saveErr   string
+	saveRetry bool
 
 	// The layout's charts, cells holding them all, those it hides too (as
 	// TradingView keeps them, for a layout with more), and the one the
@@ -113,6 +117,12 @@ type application struct {
 	indEdit    int64
 	indBefore  indicator
 	later      []func()
+
+	// A template or a workspace being named, to keep.
+	tplNaming, tplFocus bool
+	tplName             string
+	wsNaming, wsFocus   bool
+	wsName              string
 
 	// A drawing's settings: the dialog, the drawing and its market's
 	// drawings as they were, for 取消 and 撤销, the tab, and its points'
@@ -210,7 +220,23 @@ func (a *application) save() {
 	if a.editing {
 		s.Chart = a.before
 	}
-	saveSettings(a.file, s)
+	if err := saveSettings(a.file, s); err != nil {
+		a.saveErr = err.Error()
+		if !a.saveRetry {
+			a.saveRetry = true
+			a.spawn(func() {
+				time.Sleep(5 * time.Second)
+				a.post(func() {
+					a.saveRetry = false
+					if a.saveErr != "" {
+						a.save()
+					}
+				})
+			})
+		}
+		return
+	}
+	a.saveErr = ""
 }
 
 // open shows sym in bars of iv, keeping the zoom; the bars come from the

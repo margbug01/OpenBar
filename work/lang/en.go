@@ -779,4 +779,22 @@ var en = map[string]string{
 
 	// Exchanges.
 	"%s 永续": "%s perpetual",
+
+	// Templates, saved layouts, and saving the settings.
+	"指标模板":                  "Indicator templates",
+	"存为模板":                  "Save as template",
+	"把图上的指标存为模板":            "Save the chart's indicators as a template",
+	"模板名称":                  "Template name",
+	"把图上的一组指标存下来，换个图表一点就全套加上。": "Save the chart's indicators, then put them all on another chart in one click.",
+	"套用模板 %s":               "Apply template %s",
+	"删除模板 %s":               "Delete template %s",
+	"保存的布局":                 "Saved layouts",
+	"保存当前布局":                "Save layout",
+	"把现在的布局和每个图表存下来":        "Save the layout and each chart in it",
+	"布局名称":                  "Layout name",
+	"我的布局 %d":               "My layout %d",
+	"存下布局、每个图表的品种、周期和指标，以后一点就回来。": "Save the layout with each chart's symbol, interval and indicators, and bring it back in one click.",
+	"打开布局 %s":               "Open layout %s",
+	"删除布局 %s":               "Delete layout %s",
+	"设置没存上，正在重试；现在关掉会丢掉刚才的改动：%s": "Couldn't save the settings, retrying. Quitting now loses the latest changes: %s",
 }

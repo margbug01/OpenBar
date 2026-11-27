@@ -273,6 +273,9 @@ func (a *application) indicatorsDialog(c *ui.Context, t *ui.Theme, k palette) {
 			ui.Scroll(c.Key("ind-kinds")).Grow(1).FillWidth().MinHeight(0).Children(func() {
 				ui.Column(c).FillWidth().Padding(0, 16, 16, 16).Children(func() {
 					searching := strings.TrimSpace(a.indQuery) != ""
+					if !searching {
+						a.templates(c, t, k)
+					}
 					if len(hits) == 0 && searching {
 						ui.Text(c, lang.F("没有找到「%s」", strings.TrimSpace(a.indQuery))).FontSize(13).TextColor(t.TextMuted).Padding(12, 8)
 					}

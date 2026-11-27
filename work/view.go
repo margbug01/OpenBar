@@ -332,14 +332,21 @@ func (a *application) chart(c *ui.Context, t *ui.Theme, k palette) {
 }
 
 // noticeBar shows, above the time axis, what came into the indicators
-// folder, for a few seconds each.
+// folder, for a few seconds each, and, till they save, that the settings
+// did not.
 func (a *application) noticeBar(c *ui.Context, t *ui.Theme, k palette) {
 	const stay = 8 * time.Second
 	a.notices = slices.DeleteFunc(a.notices, func(n notice) bool { return time.Since(n.at) > stay })
-	if len(a.notices) == 0 {
+	if len(a.notices) == 0 && a.saveErr == "" {
 		return
 	}
 	ui.Column(c.Key("notices")).Absolute().Left(0).Right(axisW).Bottom(timeH + 52).AlignItems(ui.Center).Gap(6).PassThrough().Children(func() {
+		if a.saveErr != "" {
+			ui.Row(c.Key("save-failed")).Height(34).Padding(0, 14).AlignItems(ui.Center).MaxWidth(640).
+				Radius(6).Background(k.field).Border(1, k.down).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25)).Children(func() {
+				ui.Text(c, lang.F("设置没存上，正在重试；现在关掉会丢掉刚才的改动：%s", a.saveErr)).FontSize(12).SingleLine().MinWidth(0).Shrink(1)
+			})
+		}
 		for i, n := range a.notices {
 			ui.Row(c.Key(fmt.Sprintf("notice-%d", i))).Height(34).Padding(0, 6, 0, 14).Gap(8).AlignItems(ui.Center).MaxWidth(640).
 				Radius(6).Background(k.field).Border(1, k.line).Shadow(0, 4, 14, 0, ui.RGBA(0, 0, 0, 0.25)).Children(func() {
@@ -354,7 +361,9 @@ func (a *application) noticeBar(c *ui.Context, t *ui.Theme, k palette) {
 			})
 		}
 	})
-	c.After(stay - time.Since(a.notices[0].at) + 10*time.Millisecond)
+	if len(a.notices) > 0 {
+		c.After(stay - time.Since(a.notices[0].at) + 10*time.Millisecond)
+	}
 }
 
 func overlay(c *ui.Context) ui.Element {
