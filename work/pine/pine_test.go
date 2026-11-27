@@ -94,9 +94,8 @@ func TestSkipsDrawings(t *testing.T) {
 	s, m := run(t, `//@version=5
 indicator("x", overlay = true)
 var table tb = table.new(position.top_right, 2, 2)
-var line ln = line.new(bar_index, high, bar_index, low)
-ln.set_xy1(bar_index, high)
-ln.delete()
+lf = linefill.new(na, na, color.red)
+lf.set_color(color.blue)
 plot(close)
 alertcondition(close > open, "up")
 barcolor(close > open ? color.green : na)

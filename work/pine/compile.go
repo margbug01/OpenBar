@@ -1,6 +1,7 @@
 package pine
 
 import (
+	"cmp"
 	"math"
 	"regexp"
 	"strconv"
@@ -39,6 +40,7 @@ type cx struct {
 	source string // which bar value a series is, for input.source
 	id     int    // a plot's or level's index
 	arr    bool   // a kFloat that is an array's id
+	obj    string // a kFloat that is an object's id, of this kind: see obj.go
 }
 
 func numX(f func(m *Machine) float64) cx { return cx{k: kFloat, f: f} }
@@ -57,7 +59,8 @@ type variable struct {
 	k      vkind
 	slot   int // a float buffer's, or a string's
 	simple bool
-	arr    bool // holds an array's id
+	arr    bool   // holds an array's id
+	obj    string // holds an object's id, of this kind
 	tok    token
 }
 
@@ -95,7 +98,7 @@ func Compile(src string) (*Script, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Script{Precision: -1, Format: "inherit", MaxLabels: defaultLabels, src: src}
+	s := &Script{Precision: -1, Format: "inherit", MaxLabels: defaultObjects, MaxLines: defaultObjects, MaxBoxes: defaultObjects, src: src}
 	if v := versionRE.FindStringSubmatch(src); v != nil {
 		s.Version, _ = strconv.Atoi(v[1])
 	}
@@ -345,6 +348,9 @@ func (c *compiler) decl(st *declS, sc *scope) (func(*Machine), error) {
 		}
 		v.arr = true
 	}
+	if objMethods[st.typ] != nil || st.typ == objPoint {
+		v.obj = st.typ
+	}
 	switch v.k {
 	case kTuple:
 		return nil, errAt(st.t, "右边有好几个值，要写成 [a, b] = …")
@@ -368,9 +374,12 @@ func (c *compiler) decl(st *declS, sc *scope) (func(*Machine), error) {
 		return func(m *Machine) { m.str[slot] = v.s(m) }, nil
 	}
 	slot := c.newBuf(st.mode != "")
-	sc.vars[st.name] = &variable{k: kFloat, slot: slot, simple: v.simple && st.mode == "", arr: v.arr, tok: st.t}
+	sc.vars[st.name] = &variable{k: kFloat, slot: slot, simple: v.simple && st.mode == "", arr: v.arr, obj: v.obj, tok: st.t}
 	if v.arr && st.mode != "" {
 		c.s.arrSlots = append(c.s.arrSlots, slot)
+	}
+	if v.obj == objPoint && st.mode != "" {
+		c.s.ptSlots = append(c.s.ptSlots, slot)
 	}
 	if st.mode != "" {
 		init := c.newBuf(true)
@@ -425,6 +434,9 @@ func (c *compiler) assign(st *assignS, sc *scope) (func(*Machine), error) {
 			return nil, errAt(st.t, "%s 是数组，只能用 := 换成另一个数组", st.name)
 		}
 		return nil, errAt(st.t, "%s 是数值，不能换成数组", st.name)
+	}
+	if vr.obj == "" {
+		vr.obj = v.obj
 	}
 	op := arith(st.op[:1])
 	if st.op == ":=" {
@@ -604,7 +616,7 @@ func (c *compiler) expr1(x expr, sc *scope) (cx, error) {
 				return b.s(m)
 			}}, nil
 		}
-		return cx{k: kFloat, simple: simple, arr: a.arr || b.arr, f: func(m *Machine) float64 {
+		return cx{k: kFloat, simple: simple, arr: a.arr || b.arr, obj: cmp.Or(a.obj, b.obj), f: func(m *Machine) float64 {
 			if truth(cond.f(m)) {
 				return a.f(m)
 			}
@@ -833,6 +845,7 @@ func branches(t token, conds []cx, blocks [][]func(*Machine), vals []cx, els []f
 	})
 	for _, v := range all {
 		out.arr = out.arr || v.arr
+		out.obj = cmp.Or(out.obj, v.obj)
 	}
 	return out, nil
 }
@@ -919,7 +932,7 @@ func (c *compiler) index(x *indexX, sc *scope) (cx, error) {
 		}
 		return hist(m, int(k))
 	})
-	out.arr = base.arr
+	out.arr, out.obj = base.arr, base.obj
 	return out, nil
 }
 
@@ -943,7 +956,7 @@ func (c *compiler) name(t token, sc *scope) (cx, error) {
 			return cx{k: v.k, id: v.slot}, nil
 		}
 		slot := v.slot
-		return cx{k: kFloat, simple: v.simple, arr: v.arr, f: func(m *Machine) float64 { return m.buf[slot][m.i] }, hist: bufHist(slot)}, nil
+		return cx{k: kFloat, simple: v.simple, arr: v.arr, obj: v.obj, f: func(m *Machine) float64 { return m.buf[slot][m.i] }, hist: bufHist(slot)}, nil
 	}
 	if b, ok := builtinVars[t.text]; ok {
 		return b(c), nil
@@ -954,8 +967,17 @@ func (c *compiler) name(t token, sc *scope) (cx, error) {
 	if _, ok := c.funcs[t.text]; ok {
 		return cx{}, errAt(t, "%s 是函数，要加括号调用", t.text)
 	}
-	if head, _, ok := strings.Cut(t.text, "."); ok {
-		if v := sc.find(head); v != nil || skipped[head] { // a field of a label or a line, a constant for one: OpenBar draws none
+	if head, field, ok := strings.Cut(t.text, "."); ok {
+		if v := sc.find(head); v != nil && v.k == kFloat && pointFields[field] != nil { // p.price of a chart.point
+			slot, get := v.slot, pointFields[field]
+			return numX(func(m *Machine) float64 {
+				if p, ok := m.obj.points.get(m.buf[slot][m.i]); ok {
+					return get(p)
+				}
+				return nan
+			}), nil
+		}
+		if v := sc.find(head); v != nil || skipped[head] { // a field of a table, a constant of what OpenBar skips
 			return naX, nil
 		}
 	}
@@ -979,23 +1001,43 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 				return cx{}, err
 			}
 			return c.arrayCall(name, &recv, x, sc)
-		} else if v != nil { // a method of a label, or of a line…, which OpenBar draws none of: na
-			if _, ok := labelParams[name]; ok {
-				recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
-				if err != nil {
-					return cx{}, err
-				}
-				return c.labelCall(name, &recv, x, sc)
+		} else if v != nil && v.k == kFloat { // l.delete(): a method of a label, a line, a box or a point
+			recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
+			if err != nil {
+				return cx{}, err
 			}
+			raw, err := c.rawArgs(x, sc)
+			if err != nil {
+				return cx{}, err
+			}
+			if v.obj == objPoint {
+				return c.pointCall(name, append([]argv{{v: recv}}, raw...), x.t)
+			}
+			return c.objCall(v.obj, name, &recv, raw, x.t)
+		} else if v != nil {
 			return naX, nil
 		}
 	}
 	ns, name, _ := strings.Cut(x.fn, ".")
 	switch ns {
-	case "label":
-		return c.labelCall(name, nil, x, sc)
-	case "line", "box", "table", "polyline", "linefill", "chart":
-		c.warn(x.t, "OpenBar 不画 line、box、table，%s 会被跳过", x.fn)
+	case objLabel, objLine, objBox:
+		raw, err := c.rawArgs(x, sc)
+		if err != nil {
+			return cx{}, err
+		}
+		return c.objCall(ns, name, nil, raw, x.t)
+	case "chart":
+		if pn, ok := strings.CutPrefix(name, "point."); ok {
+			raw, err := c.rawArgs(x, sc)
+			if err != nil {
+				return cx{}, err
+			}
+			return c.pointCall(pn, raw, x.t)
+		}
+		c.warn(x.t, "OpenBar 不画 table、polyline、linefill，%s 会被跳过", x.fn)
+		return naX, nil
+	case "table", "polyline", "linefill":
+		c.warn(x.t, "OpenBar 不画 table、polyline、linefill，%s 会被跳过", x.fn)
 		return naX, nil
 	case "request":
 		return cx{}, errAt(x.t, "OpenBar 拿不到别的品种或周期的数据（%s）", x.fn)
@@ -1159,7 +1201,7 @@ func (c *compiler) inline(f *funcS, x *callX, sc *scope) (cx, error) {
 			inner.vars[params[i]] = &variable{k: kStr, slot: binds[i].slot, simple: a.simple}
 		case kFloat:
 			binds[i] = bind{a, c.newBuf(false)}
-			inner.vars[params[i]] = &variable{k: kFloat, slot: binds[i].slot, simple: a.simple, arr: a.arr}
+			inner.vars[params[i]] = &variable{k: kFloat, slot: binds[i].slot, simple: a.simple, arr: a.arr, obj: a.obj}
 		default:
 			return cx{}, errAt(a.tok, "这个参数要是数值或文字")
 		}
@@ -1189,7 +1231,7 @@ func (c *compiler) inline(f *funcS, x *callX, sc *scope) (cx, error) {
 		return cx{k: kTuple, n: v.n, tu: func(m *Machine) []float64 { setup(m); return v.tu(m) }}, nil
 	case kFloat:
 		out := numX(func(m *Machine) float64 { setup(m); return v.f(m) })
-		out.arr = v.arr
+		out.arr, out.obj = v.arr, v.obj
 		return out, nil
 	}
 	return cx{k: kVoid, f: func(m *Machine) float64 { setup(m); return math.NaN() }}, nil

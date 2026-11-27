@@ -46,6 +46,7 @@ type settings struct {
 	// charts: see workspace.go.
 	Templates  []indTemplate `json:",omitempty"`
 	Workspaces []workspace   `json:",omitempty"`
+	Workspace  string        `json:",omitempty"` // the one opened or saved last
 }
 
 // chartSettings are a chart's: its market, its bars and its indicators.

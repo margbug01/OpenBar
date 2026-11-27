@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -160,7 +161,157 @@ func (a *application) drawScript(cv canvas, ind *indicator, k *indKind, s *serie
 	for j, sh := range sc.Shapes {
 		drawShapes(cv, s, j, sh)
 	}
+	// The objects, boxes under lines under labels, as TradingView stacks them.
+	drawBoxes(cv, s)
+	drawLines(cv, s)
 	drawLabels(cv, s)
+}
+
+// strokeStyle is a Pine line style as the drawings' strokeLine takes it.
+func strokeStyle(style int) int {
+	switch style {
+	case pine.LineDashed:
+		return lineDashed
+	case pine.LineDotted:
+		return lineDotted
+	}
+	return lineSolid
+}
+
+// drawLines draws the lines the script left, run on past their points as
+// extend says, with arrows at their ends for the arrow styles.
+func drawLines(cv canvas, s *series) {
+	p, r := cv.p, cv.r
+	for _, l := range s.vm.Lines() {
+		c, ok := toColor(l.Color)
+		if !ok {
+			continue
+		}
+		left, right := l.Extend == pine.ExtendLeft || l.Extend == pine.ExtendBoth, l.Extend == pine.ExtendRight || l.Extend == pine.ExtendBoth
+		lo, hi := min(l.X1, l.X2), max(l.X1, l.X2)
+		if hi < cv.from-1 && !right || lo > cv.to+1 && !left {
+			continue
+		}
+		x0, y0, x1, y1 := cv.x(l.X1), cv.y(l.Y1), cv.x(l.X2), cv.y(l.Y2)
+		if math.IsNaN(float64(y0)) || math.IsNaN(float64(y1)) {
+			continue
+		}
+		ax0, ay0, ax1, ay1 := x0, y0, x1, y1 // where the arrows point, before the line runs on
+		if x1 < x0 {                         // left and right are on the screen
+			left, right = right, left
+		}
+		if right {
+			x1, y1 = far(x0, y0, x1, y1)
+		}
+		if left {
+			x0, y0 = far(x1, y1, x0, y0)
+		}
+		if left || right { // kept to the pane, so that it is drawn in a few pieces
+			if t0, t1 := clipSeg(x0, y0, x1, y1, r.X-4, r.Y-4, r.X+r.W+4, r.Y+r.H+4); t1 > t0 {
+				dx, dy := x1-x0, y1-y0
+				x0, y0, x1, y1 = x0+dx*t0, y0+dy*t0, x0+dx*t1, y0+dy*t1
+			}
+		}
+		w := float32(min(max(l.Width, 1), 10))
+		strokeLine(p, x0, y0, x1, y1, w, c, strokeStyle(l.Style))
+		if l.Style == pine.LineArrowLeft || l.Style == pine.LineArrowBoth {
+			arrowHead(p, ax1, ay1, ax0, ay0, w, c)
+		}
+		if l.Style == pine.LineArrowRight || l.Style == pine.LineArrowBoth {
+			arrowHead(p, ax0, ay0, ax1, ay1, w, c)
+		}
+	}
+}
+
+// arrowHead is an arrow's head at x1, y1, pointing on from x0, y0.
+func arrowHead(p *ui.Painter, x0, y0, x1, y1, w float32, c ui.Color) {
+	dx, dy := x1-x0, y1-y0
+	n := float32(math.Hypot(float64(dx), float64(dy)))
+	if n == 0 {
+		return
+	}
+	dx, dy = dx/n, dy/n
+	size := 6 + 2*w
+	bx, by := x1-dx*size, y1-dy*size
+	var path ui.Path
+	p.FillPath(path.MoveTo(x1, y1).LineTo(bx-dy*size/2, by+dx*size/2).LineTo(bx+dy*size/2, by-dx*size/2).Close(), c)
+}
+
+// drawBoxes draws the boxes the script left: the background, the border,
+// and the text where its alignment puts it.
+func drawBoxes(cv canvas, s *series) {
+	p, r := cv.p, cv.r
+	for _, b := range s.vm.Boxes() {
+		left, right := b.Extend == pine.ExtendLeft || b.Extend == pine.ExtendBoth, b.Extend == pine.ExtendRight || b.Extend == pine.ExtendBoth
+		lo, hi := min(b.Left, b.Right), max(b.Left, b.Right)
+		if hi < cv.from-1 && !right || lo > cv.to+1 && !left {
+			continue
+		}
+		x0, x1 := cv.x(lo), cv.x(hi)
+		y0, y1 := cv.y(max(b.Top, b.Bottom)), cv.y(min(b.Top, b.Bottom))
+		if math.IsNaN(float64(y0)) || math.IsNaN(float64(y1)) {
+			continue
+		}
+		if left {
+			x0 = r.X - 4
+		}
+		if right {
+			x1 = r.X + r.W + 4
+		}
+		box := ui.Rect{X: x0, Y: y0, W: x1 - x0, H: y1 - y0}
+		if bg, ok := toColor(b.Bg); ok {
+			p.Fill(box, bg, 0)
+		}
+		if bc, ok := toColor(b.Border); ok && b.BorderWidth > 0 {
+			strokeBox(p, box, float32(min(b.BorderWidth, 10)), bc, strokeStyle(b.BorderStyle))
+		}
+		if b.Text != "" {
+			scriptBoxText(p, b, box)
+		}
+	}
+}
+
+// scriptBoxText writes a box's text in it, line by line, aligned as the script
+// says, cut off at its edges.
+func scriptBoxText(p *ui.Painter, b pine.Box, box ui.Rect) {
+	tc, ok := toColor(b.TextColor)
+	if !ok {
+		return
+	}
+	fs := float32(b.TextSize)
+	if b.TextSize <= 5 {
+		fs = labelFont[max(b.TextSize, 0)]
+	}
+	lines := strings.Split(b.Text, "\n")
+	spans := make([]ui.Span, len(lines))
+	var th float32
+	for i, ln := range lines {
+		spans[i] = span(ln, fs, tc, 0)
+		_, h := p.MeasureText(0, spans[i])
+		th += h
+	}
+	const pad = 4
+	y := box.Y + (box.H-th)/2
+	switch b.VAlign {
+	case pine.AlignTop:
+		y = box.Y + pad
+	case pine.AlignBottom:
+		y = box.Y + box.H - pad - th
+	}
+	p.Clip(box, 0, func() {
+		for _, sp := range spans {
+			w, h := p.MeasureText(0, sp)
+			x := box.X + (box.W-w)/2
+			switch b.HAlign {
+			case pine.AlignLeft:
+				x = box.X + pad
+			case pine.AlignRight:
+				x = box.X + box.W - pad - w
+			}
+			p.RichText(x, y, 0, sp)
+			y += h
+		}
+	})
 }
 
 // labelFont is a label's text size by its size: auto, tiny … huge; past

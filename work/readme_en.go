@@ -16,7 +16,7 @@ When the user asks you to write an indicator for OpenBar:
 
 1. One indicator to a file, in this folder, named .pine, in UTF-8. **The file's name is the indicator's identity in OpenBar**: renaming it makes it another indicator (the one on the chart then reads "script file not found"). The name shown is indicator()'s first argument.
 2. Start with //@version=6, and have one line indicator("Name", overlay = true or false): overlay = true draws over the bars, false in a pane of its own under them.
-3. When done, wait 2 seconds and read _status.json in the same folder: one entry a file; when ok is false, error says which line and what is wrong; fix it and look again. warnings are what OpenBar skips (lines and tables, say).
+3. When done, wait 2 seconds and read _status.json in the same folder: one entry a file; when ok is false, error says which line and what is wrong; fix it and look again. warnings are what OpenBar skips (tables, say).
 4. To change an indicator, change its file; for a new one, make a new file, and do not rename others' files.
 5. Write nothing outside this folder, and leave OpenBar's settings alone.
 
@@ -32,12 +32,16 @@ When the user asks you to write an indicator for OpenBar:
 - Also: na nz fixnan int float bool, color.new color.rgb color.from_gradient color.r/g/b/t and colors like color.red, str.tostring str.format.
 - Drawing: plot (style_line linebr stepline histogram columns circles cross area; color may differ bar by bar; linewidth, offset, display = display.none), hline, fill (two plots or two hlines), bgcolor, plotshape, plotchar, plotarrow.
 - Labels: label.new(x, y, text, xloc, yloc, color, style, textcolor, size), label.delete, label.copy, label.set_* (text xy x y xloc yloc color textcolor style size), label.get_x / get_y / get_text, and methods like lb.set_text(...); every label.style_*; indicator's max_labels_count (50 unless given, 500 at most; past it the oldest go). str.tostring(x, format.mintick) shows the market's tick.
+- Lines: line.new(x1, y1, x2, y2, xloc, extend, color, style, width), delete, copy, get_x1 / x2 / y1 / y2, get_price, set_* (x1 x2 y1 y2 xy1 xy2 xloc extend color style width first_point second_point); line.style_solid / dashed / dotted / arrow_left / arrow_right / arrow_both, extend.none / left / right / both; max_lines_count.
+- Boxes: box.new(left, top, right, bottom, border_color, border_width, border_style, extend, xloc, bgcolor, text, text_size, text_color, text_halign, text_valign), delete, copy, get_left / right / top / bottom / text, set_* (left right top bottom lefttop rightbottom xloc extend border_color border_width border_style bgcolor text text_color text_size text_halign text_valign); text.align_*; max_boxes_count.
+- chart.point: chart.point.new / now / from_index / from_time / copy, p.index, p.time, p.price; label.new, line.new and box.new take points too.
+- label.all, line.all, box.all, and arrays of them like array<line> (for l in lines and l.delete() work).
 
 ## What does not
 
 - request.security and the like, which take other markets' or intervals' data: an error.
 - strategy (backtesting), library, import, type, method, matrix / map, arrays of text (array<string>): an error.
-- line, box, table, polyline, and labels placed with chart.point: no error, but skipped, not drawn (warnings say so).
+- table, polyline, linefill: no error, but skipped, not drawn (warnings say so).
 - plotcandle, plotbar, barcolor, alertcondition: skipped.
 
 ## An example

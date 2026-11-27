@@ -52,8 +52,10 @@ func compileIndicator(c *compiler, a []cx, x *callX) (cx, error) {
 			s.Format = "price"
 		}
 	}
-	if n, ok := konstNum(a[5], defaultLabels); ok && !math.IsNaN(n) {
-		s.MaxLabels = min(max(int(n), 1), maxLabels)
+	for i, max_ := range []*int{&s.MaxLabels, &s.MaxLines, &s.MaxBoxes} {
+		if n, ok := konstNum(a[5+i], defaultObjects); ok && !math.IsNaN(n) {
+			*max_ = min(max(int(n), 1), maxObjects)
+		}
 	}
 	if p, ok := konstNum(a[4], -1); ok && p >= 0 {
 		s.Precision = min(int(p), 10)

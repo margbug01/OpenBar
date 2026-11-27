@@ -17,7 +17,7 @@ const readme = `<!-- ` + readmeVersion + ` -->
 
 1. 一个指标一个文件，放在这个文件夹，扩展名 .pine，UTF-8 编码。**文件名就是它在 OpenBar 里的身份**，改名等于换了一个指标（图上那个会变成「找不到脚本」）。显示的名字取 indicator() 的第一个参数。
 2. 第一行写 //@version=6，必须有一行 indicator("名字", overlay = true 或 false)：overlay = true 画在 K 线上，false 画在 K 线下面单独一栏。
-3. 写完等 2 秒，读同一文件夹的 _status.json：每个文件一条，ok 为 false 时 error 里写着第几行、什么错，改好再看一次。warnings 是 OpenBar 跳过的东西（比如 line、table）。
+3. 写完等 2 秒，读同一文件夹的 _status.json：每个文件一条，ok 为 false 时 error 里写着第几行、什么错，改好再看一次。warnings 是 OpenBar 跳过的东西（比如 table）。
 4. 改已有的指标就直接改它的文件；要新的就新建文件，别改别人的文件名。
 5. 不要写这个文件夹以外的东西，也不用碰 OpenBar 的设置。
 
@@ -33,12 +33,16 @@ const readme = `<!-- ` + readmeVersion + ` -->
 - 其他：na nz fixnan int float bool、color.new color.rgb color.from_gradient color.r/g/b/t 和 color.red 这类颜色、str.tostring str.format。
 - 画：plot（style_line linebr stepline histogram columns circles cross area，color 可以每根 K 线不同，linewidth、offset、display = display.none）、hline、fill（两个 plot 或两个 hline）、bgcolor、plotshape、plotchar、plotarrow。
 - label：label.new(x, y, text, xloc, yloc, color, style, textcolor, size)、label.delete、label.copy、label.set_*（text xy x y xloc yloc color textcolor style size）、label.get_x / get_y / get_text，以及 lb.set_text(...) 这样的方法写法；style 的各种 label.style_*；indicator 的 max_labels_count（默认 50，最多 500，多了删最早的）。str.tostring(x, format.mintick) 按品种的最小变动价位显示。
+- line：line.new(x1, y1, x2, y2, xloc, extend, color, style, width)、delete、copy、get_x1 / x2 / y1 / y2、get_price、set_*（x1 x2 y1 y2 xy1 xy2 xloc extend color style width first_point second_point）；line.style_solid / dashed / dotted / arrow_left / arrow_right / arrow_both，extend.none / left / right / both；max_lines_count。
+- box：box.new(left, top, right, bottom, border_color, border_width, border_style, extend, xloc, bgcolor, text, text_size, text_color, text_halign, text_valign)、delete、copy、get_left / right / top / bottom / text、set_*（left right top bottom lefttop rightbottom xloc extend border_color border_width border_style bgcolor text text_color text_size text_halign text_valign）；text.align_*；max_boxes_count。
+- chart.point：chart.point.new / now / from_index / from_time / copy，p.index、p.time、p.price；label.new、line.new、box.new 都能用点来定位。
+- label.all、line.all、box.all，和 array<line> 这类放对象的数组（for l in lines、l.delete() 都行）。
 
 ## 不支持什么
 
 - request.security 这类拿别的品种、别的周期的数据：会报错。
 - strategy（策略回测）、library、import、type、method、matrix / map、文字的数组（array<string>）：会报错。
-- line、box、table、polyline，用 chart.point 定位的 label：不报错，但会跳过不画（warnings 里会写）。
+- table、polyline、linefill：不报错，但会跳过不画（warnings 里会写）。
 - plotcandle、plotbar、barcolor、alertcondition：跳过。
 
 ## 一个例子

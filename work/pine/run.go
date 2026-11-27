@@ -21,7 +21,9 @@ type Script struct {
 	Fills        []Fill
 	Bgs          []Bg
 	Shapes       []Shape
-	MaxLabels    int      // the labels it keeps: see label.go
+	MaxLabels    int // the labels, lines and boxes it keeps: see obj.go
+	MaxLines     int
+	MaxBoxes     int
 	Warnings     []*Error // what OpenBar skips
 
 	src      string
@@ -31,7 +33,9 @@ type Script struct {
 	nstr     int
 	arrays   bool  // it makes arrays
 	arrSlots []int // the var buffers that hold arrays: what they hold lives on to the next bar
-	labels   bool  // it makes labels
+	objects  bool  // it makes labels, lines, boxes or points
+	points   bool  // points
+	ptSlots  []int // the var buffers that hold points
 }
 
 // Input is a setting the script asks for. Its value is a number: a bool's
@@ -173,10 +177,10 @@ type Machine struct {
 	str     []string
 	jump    int
 	arrs    arrays // by id
-	lbls    labels
-	saved   arrays // arrs as the newest bar began, to run it again from
-	savedLb labels // and lbls
-	savedAt int    // that bar
+	obj     objects
+	saved   arrays  // arrs as the newest bar began, to run it again from
+	savedOb objects // and obj
+	savedAt int     // that bar
 }
 
 // Source is the script's text.
@@ -208,19 +212,19 @@ func (s *Script) Run(m *Machine, bars []market.Bar, inputs []float64, from int, 
 	if m == nil || m.s != s || m.Err != nil || from > m.n {
 		m, from = &Machine{s: s}, 0
 	}
-	// Arrays and labels change in place: the newest bar runs again from
+	// Arrays and objects change in place: the newest bar runs again from
 	// them as they were saved when it began.
-	keeps := s.arrays || s.labels
+	keeps := s.arrays || s.objects
 	if keeps && from > 0 {
 		if from == m.savedAt && m.saved.byID != nil {
-			m.arrs, m.lbls = m.saved.clone(), m.savedLb.clone()
+			m.arrs, m.obj = m.saved.clone(), m.savedOb.clone()
 		} else {
 			from = 0
 		}
 	}
 	if from == 0 {
-		m.arrs, m.lbls = arrays{byID: map[int][]float64{}}, labels{byID: map[int]Label{}}
-		m.saved, m.savedLb = arrays{}, labels{}
+		m.arrs, m.obj = arrays{byID: map[int][]float64{}}, objects{}
+		m.saved, m.savedOb = arrays{}, objects{}
 	}
 	out = m
 	n := len(bars)
@@ -292,11 +296,14 @@ func (s *Script) Run(m *Machine, bars []market.Bar, inputs []float64, from int, 
 		}
 		m.jump = 0
 		if keeps && i == n-1 {
-			m.saved, m.savedLb, m.savedAt = m.arrs.clone(), m.lbls.clone(), i
+			m.saved, m.savedOb, m.savedAt = m.arrs.clone(), m.obj.clone(), i
 		}
 		runBlock(m, s.run)
 		if s.arrays {
 			m.arrs.sweep(m, s.arrSlots)
+		}
+		if s.points {
+			m.sweepPoints(s.ptSlots)
 		}
 	}
 	return m

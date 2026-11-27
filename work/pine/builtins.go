@@ -885,7 +885,7 @@ func init() {
 		"input.timeframe": "fixed", "input.session": "fixed", "input.symbol": "fixed", "input.text_area": "fixed", "input.time": "fixedNum"} {
 		builtinFuncs[name] = inputFn(kind)
 	}
-	builtinFuncs["indicator"] = &bfn{params: []string{"title", "shorttitle", "overlay", "format", "precision", "max_labels_count"}, global: true, compile: compileIndicator}
+	builtinFuncs["indicator"] = &bfn{params: []string{"title", "shorttitle", "overlay", "format", "precision", "max_labels_count", "max_lines_count", "max_boxes_count"}, global: true, compile: compileIndicator}
 	builtinFuncs["plot"] = &bfn{params: []string{"series", "title", "color", "linewidth", "style", "trackprice", "histbase", "offset", "join", "editable", "show_last", "display", "format", "precision", "force_overlay"}, global: true, compile: compilePlot}
 	builtinFuncs["hline"] = &bfn{params: []string{"price", "title", "color", "linestyle", "linewidth", "editable", "display"}, global: true, compile: compileHline}
 	builtinFuncs["fill"] = &bfn{params: []string{"hline1", "hline2", "color", "title", "editable", "fillgaps", "display", "top_color", "bottom_color", "top_value", "bottom_value"}, global: true, compile: compileFill}

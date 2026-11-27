@@ -38,6 +38,18 @@ func TestIndicatorTemplate(t *testing.T) {
 	if s := loadSettings(a.file); len(s.Templates) != 1 || len(s.Templates[0].Indicators) != 2 {
 		t.Fatalf("read back %+v", s.Templates)
 	}
+	// The + on a template adds its indicators after the chart's own.
+	click(t, tt, "追加模板 MA + MACD")
+	if n := len(a.indicators); n != 4 || a.indicators[0].Params[0] != 7 || a.indicators[2].Params[0] != 33 {
+		t.Fatalf("after adding: %+v", a.indicators)
+	}
+	ids := map[int64]bool{}
+	for _, ind := range a.indicators {
+		ids[ind.ID] = true
+	}
+	if len(ids) != 4 {
+		t.Fatalf("indicators share ids: %+v", a.indicators)
+	}
 }
 
 // 保存当前布局 keeps the layout and its charts; after another layout and
@@ -76,8 +88,20 @@ func TestSavedLayout(t *testing.T) {
 	if _, ok := a.feeds[a.feedKey("SOLUSDT", "1d")]; ok || len(a.feeds) != 2 {
 		t.Fatalf("%d feeds, SOL's still asked for", len(a.feeds))
 	}
-	if s := loadSettings(a.file); s.Layout != "2h" || len(s.Workspaces) != 1 || s.Workspaces[0].Charts[1].Symbol != "ETHUSDT" {
-		t.Fatalf("read back %q %+v", s.Layout, s.Workspaces)
+	if s := loadSettings(a.file); s.Layout != "2h" || len(s.Workspaces) != 1 || s.Workspaces[0].Charts[1].Symbol != "ETHUSDT" || s.Workspace != "我的布局 1" {
+		t.Fatalf("read back %q %+v, current %q", s.Layout, s.Workspaces, s.Workspace)
+	}
+	// Changed and saved again, the layout opened is saved over, not twice.
+	a.on(a.cells[1], func() { a.open("SOLUSDT", "4h") })
+	tt.Frame()
+	if !a.layoutMenu {
+		click(t, tt, "选择布局")
+	}
+	click(t, tt, "把现在的布局和每个图表存下来")
+	shot(t, tt, "layout-overwrite")
+	click(t, tt, "覆盖")
+	if len(a.set.Workspaces) != 1 || a.set.Workspaces[0].Charts[1].Symbol != "SOLUSDT" {
+		t.Fatalf("saved over: %+v", a.set.Workspaces)
 	}
 }
 
