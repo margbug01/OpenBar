@@ -95,7 +95,7 @@ func Compile(src string) (*Script, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Script{Precision: -1, Format: "inherit", src: src}
+	s := &Script{Precision: -1, Format: "inherit", MaxLabels: defaultLabels, src: src}
 	if v := versionRE.FindStringSubmatch(src); v != nil {
 		s.Version, _ = strconv.Atoi(v[1])
 	}
@@ -169,6 +169,12 @@ func (c *compiler) blockValue(body []stmt, sc *scope) ([]func(*Machine), cx, err
 		return nil, cx{}, err
 	}
 	v, err := c.value(last.x, sc)
+	if err == nil && v.k == kVoid { // a call that gives nothing, as a.push(x): run for what it does
+		if v.f != nil {
+			ss = append(ss, func(m *Machine) { v.f(m) })
+		}
+		return ss, naX, nil
+	}
 	return ss, v, err
 }
 
@@ -973,14 +979,23 @@ func (c *compiler) call(x *callX, sc *scope) (cx, error) {
 				return cx{}, err
 			}
 			return c.arrayCall(name, &recv, x, sc)
-		} else if v != nil { // a method of a label, a line…
+		} else if v != nil { // a method of a label, or of a line…, which OpenBar draws none of: na
+			if _, ok := labelParams[name]; ok {
+				recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
+				if err != nil {
+					return cx{}, err
+				}
+				return c.labelCall(name, &recv, x, sc)
+			}
 			return naX, nil
 		}
 	}
 	ns, name, _ := strings.Cut(x.fn, ".")
 	switch ns {
-	case "label", "line", "box", "table", "polyline", "linefill", "chart":
-		c.warn(x.t, "OpenBar 不画 label、line、box、table，%s 会被跳过", x.fn)
+	case "label":
+		return c.labelCall(name, nil, x, sc)
+	case "line", "box", "table", "polyline", "linefill", "chart":
+		c.warn(x.t, "OpenBar 不画 line、box、table，%s 会被跳过", x.fn)
 		return naX, nil
 	case "request":
 		return cx{}, errAt(x.t, "OpenBar 拿不到别的品种或周期的数据（%s）", x.fn)

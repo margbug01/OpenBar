@@ -93,16 +93,15 @@ func TestErrors(t *testing.T) {
 func TestSkipsDrawings(t *testing.T) {
 	s, m := run(t, `//@version=5
 indicator("x", overlay = true)
-var label lb = na
-lb := label.new(bar_index, high, str.format("{0}", close), style = label.style_label_down)
-label.delete(lb[1])
-lb.set_text("a")
 var table tb = table.new(position.top_right, 2, 2)
+var line ln = line.new(bar_index, high, bar_index, low)
+ln.set_xy1(bar_index, high)
+ln.delete()
 plot(close)
 alertcondition(close > open, "up")
 barcolor(close > open ? color.green : na)
 `, closes(1, 2, 3))
-	if len(s.Warnings) == 0 || !strings.Contains(s.Warnings[0].Msg, "label") {
+	if len(s.Warnings) == 0 || !strings.Contains(s.Warnings[0].Msg, "table") {
 		t.Fatalf("warnings %v", s.Warnings)
 	}
 	checkPlot(t, m, 0, 1, 2, 3)

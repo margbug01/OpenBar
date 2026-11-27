@@ -21,6 +21,7 @@ type Script struct {
 	Fills        []Fill
 	Bgs          []Bg
 	Shapes       []Shape
+	MaxLabels    int      // the labels it keeps: see label.go
 	Warnings     []*Error // what OpenBar skips
 
 	src      string
@@ -30,6 +31,7 @@ type Script struct {
 	nstr     int
 	arrays   bool  // it makes arrays
 	arrSlots []int // the var buffers that hold arrays: what they hold lives on to the next bar
+	labels   bool  // it makes labels
 }
 
 // Input is a setting the script asks for. Its value is a number: a bool's
@@ -171,7 +173,9 @@ type Machine struct {
 	str     []string
 	jump    int
 	arrs    arrays // by id
+	lbls    labels
 	saved   arrays // arrs as the newest bar began, to run it again from
+	savedLb labels // and lbls
 	savedAt int    // that bar
 }
 
@@ -204,16 +208,19 @@ func (s *Script) Run(m *Machine, bars []market.Bar, inputs []float64, from int, 
 	if m == nil || m.s != s || m.Err != nil || from > m.n {
 		m, from = &Machine{s: s}, 0
 	}
-	if s.arrays && from > 0 { // arrays change in place: run again from where they were saved
+	// Arrays and labels change in place: the newest bar runs again from
+	// them as they were saved when it began.
+	keeps := s.arrays || s.labels
+	if keeps && from > 0 {
 		if from == m.savedAt && m.saved.byID != nil {
-			m.arrs = m.saved.clone()
+			m.arrs, m.lbls = m.saved.clone(), m.savedLb.clone()
 		} else {
 			from = 0
 		}
 	}
 	if from == 0 {
-		m.arrs = arrays{byID: map[int][]float64{}}
-		m.saved = arrays{}
+		m.arrs, m.lbls = arrays{byID: map[int][]float64{}}, labels{byID: map[int]Label{}}
+		m.saved, m.savedLb = arrays{}, labels{}
 	}
 	out = m
 	n := len(bars)
@@ -284,8 +291,8 @@ func (s *Script) Run(m *Machine, bars []market.Bar, inputs []float64, from int, 
 			}
 		}
 		m.jump = 0
-		if s.arrays && i == n-1 {
-			m.saved, m.savedAt = m.arrs.clone(), i
+		if keeps && i == n-1 {
+			m.saved, m.savedLb, m.savedAt = m.arrs.clone(), m.lbls.clone(), i
 		}
 		runBlock(m, s.run)
 		if s.arrays {

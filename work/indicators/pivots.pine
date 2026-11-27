@@ -1,0 +1,16 @@
+//@version=6
+indicator("枢轴高低点", "Pivots HL", overlay = true, max_labels_count = 500)
+highLeft = input.int(10, "高点左边 K 线数", minval = 1)
+highRight = input.int(10, "高点右边 K 线数", minval = 1)
+lowLeft = input.int(10, "低点左边 K 线数", minval = 1)
+lowRight = input.int(10, "低点右边 K 线数", minval = 1)
+highColor = input.color(#F23645, "高点颜色")
+lowColor = input.color(#089981, "低点颜色")
+textColor = input.color(color.white, "文字颜色")
+// A pivot is known only once the bars right of it are in: the label goes back to it.
+ph = ta.pivothigh(highLeft, highRight)
+if not na(ph)
+    label.new(bar_index - highRight, ph, str.tostring(ph, format.mintick), style = label.style_label_down, color = highColor, textcolor = textColor)
+pl = ta.pivotlow(lowLeft, lowRight)
+if not na(pl)
+    label.new(bar_index - lowRight, pl, str.tostring(pl, format.mintick), style = label.style_label_up, color = lowColor, textcolor = textColor)

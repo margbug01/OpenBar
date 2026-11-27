@@ -47,6 +47,24 @@ func TestArraysRunAgain(t *testing.T) {
 	checkIncremental(t, "arrays", arrayScript)
 }
 
+// A call that gives nothing, last in an if, a switch or a function, runs:
+// it was dropped as the block's value.
+func TestVoidCallEndingABlock(t *testing.T) {
+	_, m := run(t, `//@version=6
+indicator("x")
+var a = array.new_float()
+add(v) =>
+    a.push(v)
+if close > 2
+    a.push(close)
+switch
+    close > 3 => a.push(close)
+add(0)
+plot(a.size())
+`, closes(1, 2, 3, 4))
+	checkPlot(t, m, 0, 1, 2, 4, 7)
+}
+
 func TestArrayIndexOutOfRange(t *testing.T) {
 	s, err := Compile("indicator(\"x\")\na = array.new_float(2)\nplot(a.get(5))")
 	if err != nil {

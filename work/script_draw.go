@@ -160,6 +160,103 @@ func (a *application) drawScript(cv canvas, ind *indicator, k *indKind, s *serie
 	for j, sh := range sc.Shapes {
 		drawShapes(cv, s, j, sh)
 	}
+	drawLabels(cv, s)
+}
+
+// labelFont is a label's text size by its size: auto, tiny … huge; past
+// those, version 6's size in points.
+var labelFont = []float32{11, 9, 10, 12, 15, 20}
+
+// drawLabels draws the labels the script left, as TradingView does: the
+// label styles a box pointing at the point, the shapes a shape there with
+// the text above, style_none the text alone.
+func drawLabels(cv canvas, s *series) {
+	p := cv.p
+	for _, lb := range s.vm.Labels() {
+		if lb.X < cv.from-50 || lb.X > cv.to+50 { // a wide label reaches in from past the edge
+			continue
+		}
+		x := cv.x(lb.X)
+		loc := lb.YLoc
+		if !cv.main && loc != pine.LocAbsolute {
+			loc = map[int]int{pine.LocAboveBar: pine.LocTop, pine.LocBelowBar: pine.LocBottom}[loc]
+		}
+		var y float32
+		switch loc {
+		case pine.LocAboveBar:
+			y = cv.y(barHigh(s, lb.X)) - 4
+		case pine.LocBelowBar:
+			y = cv.y(barLow(s, lb.X)) + 4
+		case pine.LocTop:
+			y = cv.r.Y + 4
+		case pine.LocBottom:
+			y = cv.r.Y + cv.r.H - 4
+		default:
+			y = cv.y(lb.Y)
+		}
+		if math.IsNaN(float64(y)) {
+			continue
+		}
+		fs := float32(lb.Size)
+		if lb.Size <= 5 {
+			fs = labelFont[max(lb.Size, 0)]
+		}
+		drawLabel(p, lb, x, y, fs)
+	}
+}
+
+func drawLabel(p *ui.Painter, lb pine.Label, x, y, fs float32) {
+	fill, filled := toColor(lb.Color)
+	textCol, _ := toColor(lb.TextColor)
+	sp := span(lb.Text, fs, textCol, 500)
+	w, th := p.MeasureText(0, sp)
+	bw, bh := w+fs, th+fs*0.6
+	const tip = 5
+	var path ui.Path
+	box := func(cx, cy float32) {
+		if filled {
+			p.Fill(ui.Rect{X: cx - bw/2, Y: cy - bh/2, W: bw, H: bh}, fill, 3)
+		}
+		if lb.Text != "" {
+			label(p, cx, cy, sp, alignCenter)
+		}
+	}
+	switch lb.Style {
+	case pine.ShapeLabelDown: // above the point, pointing down at it
+		if filled {
+			p.FillPath(path.MoveTo(x, y).LineTo(x+tip, y-tip).LineTo(x-tip, y-tip).Close(), fill)
+		}
+		box(x, y-tip-bh/2)
+	case pine.ShapeLabelUp:
+		if filled {
+			p.FillPath(path.MoveTo(x, y).LineTo(x+tip, y+tip).LineTo(x-tip, y+tip).Close(), fill)
+		}
+		box(x, y+tip+bh/2)
+	case pine.LabelLeft: // right of the point, pointing left at it
+		if filled {
+			p.FillPath(path.MoveTo(x, y).LineTo(x+tip, y-tip).LineTo(x+tip, y+tip).Close(), fill)
+		}
+		box(x+tip+bw/2, y)
+	case pine.LabelRight:
+		if filled {
+			p.FillPath(path.MoveTo(x, y).LineTo(x-tip, y-tip).LineTo(x-tip, y+tip).Close(), fill)
+		}
+		box(x-tip-bw/2, y)
+	case pine.LabelCenter:
+		box(x, y)
+	case pine.LabelNone:
+		if lb.Text != "" {
+			label(p, x, y, sp, alignCenter)
+		}
+	default: // a shape at the point, the text above it
+		sz := shapeSizes[min(max(lb.Size, 0), len(shapeSizes)-1)]
+		if filled {
+			drawShape(p, lb.Style, "", x, y, sz, fill, textCol, "")
+		}
+		if lb.Text != "" {
+			label(p, x, y-sz/2-th/2-2, sp, alignCenter)
+		}
+	}
 }
 
 func (a *application) drawPlot(cv canvas, ind *indicator, k *indKind, s *series, j int, pl pine.Plot) {

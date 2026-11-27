@@ -34,6 +34,7 @@ var shippedScripts = []struct{ file, category, alias string }{
 	{"supertrend", "趋势", "超级趋势 SuperTrend"},
 	{"dmi", "趋势", "ADX 趋向 Directional Movement Index"},
 	{"aroon", "趋势", "阿隆 Aroon"},
+	{"pivots", "趋势", "枢轴 高低点 拐点 Pivots High Low HL"},
 	{"stochrsi", "震荡", "随机 RSI Stoch RSI"},
 	{"cci", "震荡", "顺势 Commodity Channel Index"},
 	{"wr", "震荡", "威廉 Williams %R WR"},

@@ -750,6 +750,13 @@ func init() {
 			if v.k == kStr {
 				return v, nil
 			}
+			if f, _ := konstStr(a[1], ""); f == "mintick" { // as the chart's prices: rounded to the tick, with its decimals
+				return cx{k: kStr, s: func(m *Machine) string {
+					t := m.tick()
+					d := max(0, int(math.Ceil(-math.Log10(t)-1e-9)))
+					return strconv.FormatFloat(math.Round(v.f(m)/t)*t, 'f', d, 64)
+				}}, nil
+			}
 			return cx{k: kStr, s: func(m *Machine) string { return numText(v.f(m)) }}, nil
 		}},
 		"str.format": {params: []string{"formatString", "arg…"}, compile: func(c *compiler, a []cx, x *callX) (cx, error) {
@@ -878,7 +885,7 @@ func init() {
 		"input.timeframe": "fixed", "input.session": "fixed", "input.symbol": "fixed", "input.text_area": "fixed", "input.time": "fixedNum"} {
 		builtinFuncs[name] = inputFn(kind)
 	}
-	builtinFuncs["indicator"] = &bfn{params: []string{"title", "shorttitle", "overlay", "format", "precision"}, global: true, compile: compileIndicator}
+	builtinFuncs["indicator"] = &bfn{params: []string{"title", "shorttitle", "overlay", "format", "precision", "max_labels_count"}, global: true, compile: compileIndicator}
 	builtinFuncs["plot"] = &bfn{params: []string{"series", "title", "color", "linewidth", "style", "trackprice", "histbase", "offset", "join", "editable", "show_last", "display", "format", "precision", "force_overlay"}, global: true, compile: compilePlot}
 	builtinFuncs["hline"] = &bfn{params: []string{"price", "title", "color", "linestyle", "linewidth", "editable", "display"}, global: true, compile: compileHline}
 	builtinFuncs["fill"] = &bfn{params: []string{"hline1", "hline2", "color", "title", "editable", "fillgaps", "display", "top_color", "bottom_color", "top_value", "bottom_value"}, global: true, compile: compileFill}

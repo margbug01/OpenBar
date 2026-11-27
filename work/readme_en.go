@@ -16,7 +16,7 @@ When the user asks you to write an indicator for OpenBar:
 
 1. One indicator to a file, in this folder, named .pine, in UTF-8. **The file's name is the indicator's identity in OpenBar**: renaming it makes it another indicator (the one on the chart then reads "script file not found"). The name shown is indicator()'s first argument.
 2. Start with //@version=6, and have one line indicator("Name", overlay = true or false): overlay = true draws over the bars, false in a pane of its own under them.
-3. When done, wait 2 seconds and read _status.json in the same folder: one entry a file; when ok is false, error says which line and what is wrong; fix it and look again. warnings are what OpenBar skips (labels, say).
+3. When done, wait 2 seconds and read _status.json in the same folder: one entry a file; when ok is false, error says which line and what is wrong; fix it and look again. warnings are what OpenBar skips (lines and tables, say).
 4. To change an indicator, change its file; for a new one, make a new file, and do not rename others' files.
 5. Write nothing outside this folder, and leave OpenBar's settings alone.
 
@@ -31,12 +31,13 @@ When the user asks you to write an indicator for OpenBar:
 - math: abs max min avg sum sqrt pow exp log log10 round floor ceil sign sin cos tan asin acos atan todegrees toradians round_to_mintick pi e.
 - Also: na nz fixnan int float bool, color.new color.rgb color.from_gradient color.r/g/b/t and colors like color.red, str.tostring str.format.
 - Drawing: plot (style_line linebr stepline histogram columns circles cross area; color may differ bar by bar; linewidth, offset, display = display.none), hline, fill (two plots or two hlines), bgcolor, plotshape, plotchar, plotarrow.
+- Labels: label.new(x, y, text, xloc, yloc, color, style, textcolor, size), label.delete, label.copy, label.set_* (text xy x y xloc yloc color textcolor style size), label.get_x / get_y / get_text, and methods like lb.set_text(...); every label.style_*; indicator's max_labels_count (50 unless given, 500 at most; past it the oldest go). str.tostring(x, format.mintick) shows the market's tick.
 
 ## What does not
 
 - request.security and the like, which take other markets' or intervals' data: an error.
 - strategy (backtesting), library, import, type, method, matrix / map, arrays of text (array<string>): an error.
-- label, line, box, table, polyline: no error, but skipped, not drawn (warnings say so).
+- line, box, table, polyline, and labels placed with chart.point: no error, but skipped, not drawn (warnings say so).
 - plotcandle, plotbar, barcolor, alertcondition: skipped.
 
 ## An example

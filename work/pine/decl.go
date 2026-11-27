@@ -48,6 +48,12 @@ func compileIndicator(c *compiler, a []cx, x *callX) (cx, error) {
 	}
 	if f, ok := konstStr(a[3], "inherit"); ok {
 		s.Format = f
+		if f == "mintick" {
+			s.Format = "price"
+		}
+	}
+	if n, ok := konstNum(a[5], defaultLabels); ok && !math.IsNaN(n) {
+		s.MaxLabels = min(max(int(n), 1), maxLabels)
 	}
 	if p, ok := konstNum(a[4], -1); ok && p >= 0 {
 		s.Precision = min(int(p), 10)
@@ -485,7 +491,7 @@ func init() {
 		builtinVars["color."+name] = func(*compiler) cx { return konstX(float64(col)) }
 	}
 	for k, v := range map[string]string{"format.inherit": "inherit", "format.price": "price", "format.volume": "volume",
-		"format.percent": "percent", "format.mintick": "price",
+		"format.percent": "percent", "format.mintick": "mintick",
 		"input.integer": "integer", "input.float": "float", "input.bool": "bool", "input.source": "source",
 		"input.string": "string", "input.color": "color", "input.resolution": "string", "input.session": "string"} {
 		builtinVars[k] = func(*compiler) cx { return strX(v) }
