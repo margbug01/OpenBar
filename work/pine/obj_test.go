@@ -3,6 +3,7 @@ package pine
 import (
 	"os"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -196,4 +197,20 @@ bx.set_top(math.max(bx.get_top(), high))
 	if b := whole.Boxes(); len(b) != 1 || b[0].Top != 6 || b[0].Right != 5 {
 		t.Fatalf("box %+v", b)
 	}
+}
+
+// A method called on what a call gives, as keep.shift().delete(), runs.
+func TestChainedMethods(t *testing.T) {
+	_, m := run(t, strings.Replace(lineScript, "    old = keep.shift()\n    old.delete()\n", "    keep.shift().delete()\n", 1), closes(1, 2, 3, 4, 5))
+	if got := m.Lines(); len(got) != 2 || got[0].X2 != 3 {
+		t.Fatalf("lines %+v", got)
+	}
+	_, m = run(t, `//@version=6
+indicator("x")
+p = chart.point.now(high).copy()
+plot(p.index)
+plot(p.price)
+`, closes(1, 2))
+	checkPlot(t, m, 0, 0, 1)
+	checkPlot(t, m, 1, 2, 3)
 }

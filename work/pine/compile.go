@@ -989,31 +989,61 @@ func isBuiltinName(n string) bool {
 	return ok
 }
 
+// method compiles the method name of recv: a.push(x) is array.push(a, x),
+// l.delete() line.delete(l), of a label, a line, a box or a point.
+func (c *compiler) method(recv cx, name string, x *callX, sc *scope) (cx, error) {
+	if recv.arr {
+		return c.arrayCall(name, &recv, x, sc)
+	}
+	raw, err := c.rawArgs(x, sc)
+	if err != nil {
+		return cx{}, err
+	}
+	// recv is worked out once, before the method: it is read twice when
+	// its kind shows only as it runs, and keep.shift() must shift once.
+	slot, eval := c.newBuf(false), recv.f
+	once := recv
+	once.f, once.hist, once.konst = func(m *Machine) float64 { return m.buf[slot][m.i] }, nil, false
+	var out cx
+	if recv.obj == objPoint {
+		out, err = c.pointCall(name, append([]argv{{v: once}}, raw...), x.t)
+	} else {
+		out, err = c.objCall(recv.obj, name, &once, raw, x.t)
+	}
+	if err != nil || out.konst {
+		return out, err
+	}
+	if s := out.s; s != nil {
+		out.s = func(m *Machine) string { m.buf[slot][m.i] = eval(m); return s(m) }
+	}
+	if f := out.f; f != nil {
+		out.f = func(m *Machine) float64 { m.buf[slot][m.i] = eval(m); return f(m) }
+	}
+	return out, nil
+}
+
 // call compiles a call of one of the script's functions, or a built-in one.
 func (c *compiler) call(x *callX, sc *scope) (cx, error) {
+	if x.recv != nil { // lines.shift().delete()
+		recv, err := c.expr(x.recv, sc)
+		if err != nil {
+			return cx{}, err
+		}
+		if recv.k != kFloat {
+			return naX, nil
+		}
+		return c.method(recv, x.fn, x, sc)
+	}
 	if f, ok := c.funcs[x.fn]; ok {
 		return c.inline(f, x, sc)
 	}
 	if head, name, ok := strings.Cut(x.fn, "."); ok {
-		if v := sc.find(head); v != nil && v.arr { // a.push(x) is array.push(a, x)
+		if v := sc.find(head); v != nil && v.k == kFloat { // a.push(x), l.delete()
 			recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
 			if err != nil {
 				return cx{}, err
 			}
-			return c.arrayCall(name, &recv, x, sc)
-		} else if v != nil && v.k == kFloat { // l.delete(): a method of a label, a line, a box or a point
-			recv, err := c.name(token{text: head, start: x.t.start, end: x.t.start + len(head)}, sc)
-			if err != nil {
-				return cx{}, err
-			}
-			raw, err := c.rawArgs(x, sc)
-			if err != nil {
-				return cx{}, err
-			}
-			if v.obj == objPoint {
-				return c.pointCall(name, append([]argv{{v: recv}}, raw...), x.t)
-			}
-			return c.objCall(v.obj, name, &recv, raw, x.t)
+			return c.method(recv, name, x, sc)
 		} else if v != nil {
 			return naX, nil
 		}

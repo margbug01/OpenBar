@@ -23,6 +23,7 @@ type (
 		t    token // the function's name
 		fn   string
 		args []argX
+		recv expr // what a method is called on, as lines.shift() in lines.shift().delete(); nil for a function
 	}
 	indexX struct {
 		t      token
@@ -761,18 +762,64 @@ func (p *parser) unary() (expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.isOp("[") {
-		t := p.next()
-		off, err := p.expr()
-		if err != nil {
-			return nil, err
+	for {
+		switch {
+		case p.isOp("["):
+			t := p.next()
+			off, err := p.expr()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect("]"); err != nil {
+				return nil, err
+			}
+			x = &indexX{t: t, x: x, off: off}
+		case p.isOp(".") && p.peekAt(1).kind == tkIdent && p.peekAt(2).kind == tkOp && p.peekAt(2).text == "(":
+			p.next()
+			t := p.next()
+			p.next()
+			c := &callX{t: t, fn: t.text, recv: x}
+			if err := p.callArgs(c); err != nil {
+				return nil, err
+			}
+			x = c
+		default:
+			return x, nil
 		}
-		if _, err := p.expect("]"); err != nil {
-			return nil, err
-		}
-		x = &indexX{t: t, x: x, off: off}
 	}
-	return x, nil
+}
+
+// callArgs reads a call's arguments, after its (, and its ).
+func (p *parser) callArgs(c *callX) error {
+	for !p.isOp(")") {
+		if p.atEnd() {
+			return errAt(p.peek(), "少了 )")
+		}
+		var a argX
+		if p.peek().kind == tkIdent && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "=" {
+			nt := p.next()
+			a.name, a.t = nt.text, nt
+			p.next()
+		}
+		x, err := p.expr()
+		if err != nil {
+			return err
+		}
+		if a.t.end == 0 {
+			a.t = x.at()
+		}
+		a.x = x
+		c.args = append(c.args, a)
+		if p.isOp(",") {
+			p.next()
+		} else if p.atEnd() {
+			return errAt(p.peek(), "少了 )")
+		} else if !p.isOp(")") {
+			return errAt(p.peek(), "参数之间要用逗号隔开")
+		}
+	}
+	p.next()
+	return nil
 }
 
 func (p *parser) primary() (expr, error) {
@@ -810,35 +857,7 @@ func (p *parser) primary() (expr, error) {
 		}
 		p.next()
 		c := &callX{t: t, fn: t.text}
-		for !p.isOp(")") {
-			if p.atEnd() {
-				return nil, errAt(p.peek(), "少了 )")
-			}
-			var a argX
-			if p.peek().kind == tkIdent && p.peekAt(1).kind == tkOp && p.peekAt(1).text == "=" {
-				nt := p.next()
-				a.name, a.t = nt.text, nt
-				p.next()
-			}
-			x, err := p.expr()
-			if err != nil {
-				return nil, err
-			}
-			if a.t.end == 0 {
-				a.t = x.at()
-			}
-			a.x = x
-			c.args = append(c.args, a)
-			if p.isOp(",") {
-				p.next()
-			} else if p.atEnd() {
-				return nil, errAt(p.peek(), "少了 )")
-			} else if !p.isOp(")") {
-				return nil, errAt(p.peek(), "参数之间要用逗号隔开")
-			}
-		}
-		p.next()
-		return c, nil
+		return c, p.callArgs(c)
 	case tkOp:
 		switch t.text {
 		case "(":
