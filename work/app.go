@@ -155,7 +155,8 @@ type application struct {
 
 	upd updates
 
-	intra *intraday // the day's minutes, double-clicked open; nil closed
+	intra    *intraday // the days' minutes, double-clicked open; nil closed
+	onCharts bool      // the pointer is over the charts, no dialog on top of them
 }
 
 func newApplication(set settings, file string, bin market.Binance, post func(func())) *application {

@@ -272,6 +272,10 @@ func (a *application) symbolPage(c *ui.Context, t *ui.Theme, k palette) {
 		a.dropdown(c, "一天的起点", dayStarts(st), st.BreakZone, func(v string) { st.BreakZone = v }).Width(300).
 			Tooltip(lang.T("自选和顶栏里币安交易对的涨跌幅从这个时刻的价格算起（搜索结果是 24 小时）；交易日分隔线也画在这个时刻，只在 1 天以下的周期画。美股、期货、A 股、港股跟昨收比，分隔线按各自的交易时段画，不看这里"))
 	})
+	section(c, t, "分时")
+	checkRow(c, &st.ClickIntraday, "单击 K 线打开分时", func() {
+		ui.Text(c, lang.T("日线上双击一根 K 线总能打开那天的分时；勾上后单击也行")).FontSize(12).TextColor(t.TextMuted).Grow(1).MinWidth(0)
+	})
 }
 
 func (a *application) statusPage(c *ui.Context, t *ui.Theme, k palette) {

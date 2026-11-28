@@ -76,16 +76,16 @@ func TestForexAppLive(t *testing.T) {
 	// The minutes of the day before the newest.
 	n := len(a.bars)
 	b := a.bars[n-2]
-	if !a.openIntraday(a.view.x(n-2, a.plotW, n), a.shown.y((b.H+b.L)/2, a.axis)) {
+	if !a.openIntraday(a.view.x(n-2, a.plotW, n), a.shown.y((b.H+b.L)/2, a.axis), time.Time{}) {
 		t.Fatal("no candle to open")
 	}
-	run("the minutes", 30*time.Second, func() bool { return !a.intra.loading })
-	d := a.intra
-	if d.err != "" || len(d.bars) == 0 {
-		t.Fatalf("minutes: %d, %s", len(d.bars), d.err)
+	m := a.intra.got[b.T]
+	run("the minutes", 30*time.Second, func() bool { return m.in })
+	if m.err != "" || len(m.bars) == 0 {
+		t.Fatalf("minutes: %d, %s", len(m.bars), m.err)
 	}
-	t.Logf("minutes of %s: %d of %s, %s .. %s UTC", time.UnixMilli(b.T).UTC().Format("Mon 01-02 15:04"), len(d.bars), d.iv,
-		time.UnixMilli(d.bars[0].T).UTC().Format("15:04"), time.UnixMilli(d.bars[len(d.bars)-1].T).UTC().Format("15:04"))
+	t.Logf("minutes of %s: %d of %s, %s .. %s UTC", time.UnixMilli(b.T).UTC().Format("Mon 01-02 15:04"), len(m.bars), m.iv,
+		time.UnixMilli(m.bars[0].T).UTC().Format("15:04"), time.UnixMilli(m.bars[len(m.bars)-1].T).UTC().Format("15:04"))
 	tt.Frame()
 	tt.Frame()
 	shot(t, tt, "forex-intraday")

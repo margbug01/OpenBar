@@ -27,6 +27,7 @@ type style struct {
 	Volume                                 bool
 	Precision                              int    // decimals, -1 the market's
 	Zone                                   string // IANA, "" this machine's
+	ClickIntraday                          bool   // a click on a day's candle opens its minutes, as a double click does
 
 	// 状态行
 	Title, Values, Change, VolumeValue bool

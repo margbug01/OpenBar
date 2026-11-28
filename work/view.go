@@ -231,6 +231,9 @@ func (a *application) status(c *ui.Context, t *ui.Theme, k palette) {
 func (a *application) chartArea(c *ui.Context, t *ui.Theme, k palette) {
 	area := ui.Box(c.Key("chart-area")).Grow(1).FillHeight().MinWidth(0)
 	a.area = area.Bounds()
+	// The pointer is over the charts only with nothing on top of them: a
+	// dialog's backdrop takes the hover, though the pointer is inside them.
+	a.onCharts = area.Hovered()
 	area.Children(func() {
 		a.charts(c, t, k, area)
 		// Over all the charts, once: the bar of favorite tools and the
@@ -270,6 +273,7 @@ func (a *application) cellBox(c *ui.Context, t *ui.Theme, k palette, i int, box 
 func (a *application) chart(c *ui.Context, t *ui.Theme, k palette) {
 	box := ui.Box(c.Key("chart")).FillWidth().FillHeight()
 	hx, hy, over := box.PointerPosition()
+	over = over && a.onCharts
 	a.bounds = box.Bounds()
 	cursor := ui.CursorCrosshair
 	switch {
@@ -494,7 +498,9 @@ func (a *application) resetView() {
 // sideways swipe on a touchpad pans. Over the price axis the wheel, and a drag
 // up or down, scale the prices, which then stay put, the chart dragging them
 // up and down too, until a double click: on the axis that only fits them to
-// the bars again, on the chart it goes back to the newest bar as well. An
+// the bars again, on the chart it goes back to the newest bar as well. On a
+// chart of days a double click in a day's column opens its minutes, and so
+// does a click when the settings say so. An
 // indicator's pane is the same (paneInput), its prices scaled on their own;
 // the time is the same for all panes.
 func (a *application) chartInput(ev ui.InputEvent) bool {
@@ -518,7 +524,7 @@ func (a *application) chartInput(ev ui.InputEvent) bool {
 			switch {
 			case onAxis:
 				a.scale = prices{}
-			case !a.openIntraday(ev.X, ev.Y):
+			case !a.openIntraday(ev.X, ev.Y, time.Time{}):
 				a.resetView()
 			}
 			return true
@@ -527,6 +533,7 @@ func (a *application) chartInput(ev ui.InputEvent) bool {
 			return false
 		}
 		a.drag, a.dragX, a.dragY, a.dragPane = dragChart, ev.X, ev.Y, 0
+		a.pressX, a.pressY = ev.X, ev.Y
 		if pn, ok := a.paneAt(ev.Y); ok {
 			a.dragPane = a.indicators[pn.idx].ID
 		}
@@ -559,7 +566,14 @@ func (a *application) chartInput(ev ui.InputEvent) bool {
 		if a.drag == dragNone {
 			return false
 		}
+		clicked := a.drag == dragChart && !ev.Canceled && a.tool == "" && a.creating == nil &&
+			math.Hypot(float64(ev.X-a.pressX), float64(ev.Y-a.pressY)) <= 3
 		a.drag = dragNone
+		if clicked && a.set.Chart.ClickIntraday {
+			// The second click of a double click lands on the dialog's
+			// backdrop: for a moment, that closes nothing.
+			a.openIntraday(ev.X, ev.Y, ev.Time.Add(500*time.Millisecond))
+		}
 	case ui.InputScroll:
 		if corner || paneAxis {
 			return false

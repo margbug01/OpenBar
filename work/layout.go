@@ -157,7 +157,7 @@ func (a *application) charts(c *ui.Context, t *ui.Theme, k palette, area ui.Elem
 func (a *application) findCross(area ui.Element, n int) {
 	a.cross = crossPoint{}
 	px, py, over := area.PointerPosition()
-	if !over {
+	if !over || !a.onCharts {
 		return
 	}
 	b := area.Bounds()
