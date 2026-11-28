@@ -844,4 +844,9 @@ var en = map[string]string{
 	"K 线旁": "Beside the bars",
 	"价格轴上": "On the price axis",
 	"在最高那根 K 线的上影线顶端、最低那根的下影线底端标出价格，跟着 K 线走": "Label the prices at the tip of the highest bar's wick and of the lowest bar's, moving with the bars",
+
+	// The drawing tools folded away.
+	"画图":       "Draw",
+	"画图工具栏：展开": "Drawing tools: show",
+	"画图工具栏：收起": "Drawing tools: hide",
 }

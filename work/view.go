@@ -45,7 +45,9 @@ func (a *application) render(c *ui.Context) {
 	ui.Column(c).FillWidth().FillHeight().Background(k.bg).Children(func() {
 		a.toolbar(c, t, k)
 		ui.Row(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
-			a.toolsColumn(c, t, k)
+			if a.set.DrawTools {
+				a.toolsColumn(c, t, k)
+			}
 			a.chartArea(c, t, k)
 			a.watchlist(c, t, k)
 		})
@@ -76,6 +78,7 @@ func (a *application) toolbar(c *ui.Context, t *ui.Theme, k palette) {
 		// buttons are left of it.
 		ui.Box(c).Width(max(bar.Left-4, 0)).FillHeight().Shrink(0).DragWindow()
 		a.headline(c, t, k)
+		a.drawToolsButton(c, t, k)
 		divider(c, k)
 		ui.Row(c).Shrink(0).Gap(2).Padding(0, 10).AlignItems(ui.Center).Children(func() {
 			for _, iv := range intervals {

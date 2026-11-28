@@ -27,6 +27,7 @@ var (
 	copyIcon   = svg("<rect x='5.5' y='5.5' width='8' height='8' rx='1.2'/><path d='M10.5 3.5v-.3a.7.7 0 0 0-.7-.7H3.2a.7.7 0 0 0-.7.7v6.6a.7.7 0 0 0 .7.7h.3'/>")
 	lockIcon   = svg("<rect x='3' y='7' width='10' height='7' rx='1.2'/><path d='M5.5 7V5a2.5 2.5 0 0 1 5 0v2'/>")
 	unlockIcon = svg("<rect x='3' y='7' width='10' height='7' rx='1.2'/><path d='M5.5 7V5a2.5 2.5 0 0 1 4.9-.7'/>")
+	drawIcon   = svg("<path d='M2.5 13.5 3.3 10 10.6 2.7a1.3 1.3 0 0 1 1.8 0l.9.9a1.3 1.3 0 0 1 0 1.8L6 12.7z'/><path d='m9.5 3.8 2.7 2.7M9 13.5h4.5'/>")
 )
 
 const (
@@ -341,6 +342,30 @@ func (a *application) endDrag() {
 	}
 	a.dragBefore = nil
 	a.save()
+}
+
+// drawToolsButton, right of the market's name, shows the column of drawing
+// tools or folds it away. Folded, the bar of favorites, the drawings and
+// their keys still work; a tool taken up keeps the column as it is.
+func (a *application) drawToolsButton(c *ui.Context, t *ui.Theme, k palette) {
+	tip := "画图工具栏：展开"
+	if a.set.DrawTools {
+		tip = "画图工具栏：收起"
+	}
+	b := ui.ButtonBase(c.Key("draw-tools")).Size(30, 30).Shrink(0).Margin(0, 10, 0, 0).Center().Radius(6).Cursor(ui.CursorPointer).
+		Label(lang.T("画图")).Tooltip(lang.T(tip))
+	col := t.TextMuted
+	switch {
+	case a.set.DrawTools:
+		b.Background(k.chosen)
+		col = k.accent
+	case b.Hovered():
+		b.Background(k.hover)
+	}
+	if b.Children(func() { ui.Icon(c, drawIcon).Size(17, 17).TextColor(col) }).Clicked() {
+		a.set.DrawTools = !a.set.DrawTools
+		a.save()
+	}
 }
 
 // toolsColumn is the column of drawing tools on the left of the chart.

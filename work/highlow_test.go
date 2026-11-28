@@ -19,6 +19,7 @@ func TestHighLowMarksStayOnTheChart(t *testing.T) {
 		{"highlow-right-dark", true, func(from, to int) int { return to }},
 	} {
 		a := testApp()
+		a.set.Chart.TopMargin = 20 // the high clear of the legend
 		tt := newTester(a, c.dark)
 		n := len(a.bars)
 		from, to := a.view.span(a.plotW, n)

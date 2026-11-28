@@ -120,5 +120,7 @@ func drawSignal(bars []market.Bar, s signalbot.Signal, label, file string) error
 		return err
 	}
 	defer f.Close()
-	return png.Encode(f, tt.Image().SubImage(image.Rect(52, 0, 1320-watchW, 820)))
+	// The charts' columns only, whichever of the drawing tools and the
+	// watchlist show beside them.
+	return png.Encode(f, tt.Image().SubImage(image.Rect(int(a.area.X), 0, int(a.area.X+a.area.W), 820)))
 }

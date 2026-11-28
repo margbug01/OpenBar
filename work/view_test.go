@@ -38,6 +38,7 @@ func init() { applyTheme = func(string) {} }
 func testApp() *application {
 	a := newApplication(defaultSettings(), "", market.Binance{}, func(f func()) { f() })
 	a.spawn = func(func()) {}
+	a.set.DrawTools = true // the tests draw from the column, which starts folded away
 	a.open("BTCUSDT", "1h")
 	a.loading, a.bars, a.atStart, a.stream = false, fakeBars(600, 3_600_000), true, live
 	for i, s := range a.set.Watch {
