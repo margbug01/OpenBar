@@ -155,7 +155,7 @@ func TestYahooForexLive(t *testing.T) {
 		t.Fatalf("symbols: %+v, %v", syms, err)
 	}
 	q, err := y.Quotes(ctx, []string{"FX:EURUSD", "FX:USDJPY", "FX:USDCNH", "FX:USDCNY", "FX:USDHKD"})
-	if err != nil || len(q) != 5 || q[0].Symbol != "FX:EURUSD" || math.Abs(q[0].Last-price) > 0.0005 {
+	if err != nil || len(q) != 5 || q[0].Symbol != "FX:EURUSD" || q[0].Last != price {
 		t.Fatalf("quotes, EUR/USD's newest hour closing at %v: %+v, %v", price, q, err)
 	}
 	t.Logf("quotes: %+v", q)

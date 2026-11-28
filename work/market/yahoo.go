@@ -477,34 +477,57 @@ func parseMeta(body []byte) (yahooMeta, error) {
 }
 
 // Quotes is the last price and the last session's close of each market, in
-// one request a score of them. A currency pair's last price comes from its
-// hours: its last day's close is the day before's (see plan).
+// one request a score of them. A currency pair's come from its hours, one
+// request a pair: spark rounds a pair to four decimals (its priceHint), and
+// its days close at the day before's close (see plan).
 func (y Yahoo) Quotes(ctx context.Context, ids []string) ([]Ticker, error) {
+	var rest []string
 	var out []Ticker
-	var pairs, rest []string
 	for _, id := range ids {
-		if in, _ := InstrumentOf(id); in.FX {
-			pairs = append(pairs, id)
-		} else {
+		in, _ := InstrumentOf(id)
+		if !in.FX {
 			rest = append(rest, id)
+			continue
 		}
-	}
-	for _, g := range []struct {
-		ids      []string
-		interval string
-	}{{rest, "1d"}, {pairs, "1h"}} {
-		got, err := y.spark(ctx, g.ids, g.interval)
+		t, ok, err := y.pairQuote(ctx, in)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, got...)
+		if ok {
+			out = append(out, t)
+		}
 	}
+	got, err := y.spark(ctx, rest)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, got...)
 	slices.SortFunc(out, func(a, b Ticker) int { return cmp.Compare(a.Symbol, b.Symbol) })
 	return out, nil
 }
 
-// spark asks for the quotes of ids over a day of bars of interval.
-func (y Yahoo) spark(ctx context.Context, ids []string, interval string) ([]Ticker, error) {
+// pairQuote is a currency pair's last hour's close, moving from the close
+// of the last hour before its day began, as its day bar does.
+func (y Yahoo) pairQuote(ctx context.Context, in Instrument) (Ticker, bool, error) {
+	now := time.Now().Unix()
+	bars, err := y.chart(ctx, in, yahooIntervals["1h"], now-5*86_400, now+3600)
+	if err != nil || len(bars) == 0 {
+		return Ticker{}, false, err
+	}
+	last := bars[len(bars)-1]
+	t := Ticker{Symbol: in.ID, Last: last.C, Open: last.C}
+	start := in.SessionStart(last.T)
+	for _, b := range slices.Backward(bars) {
+		if b.T < start {
+			t.Open = b.C
+			break
+		}
+	}
+	return t, true, nil
+}
+
+// spark asks for the quotes of ids over a day of days.
+func (y Yahoo) spark(ctx context.Context, ids []string) ([]Ticker, error) {
 	var out []Ticker
 	for i := 0; i < len(ids); i += 20 {
 		chunk := ids[i:min(i+20, len(ids))]
@@ -519,7 +542,7 @@ func (y Yahoo) spark(ctx context.Context, ids []string, interval string) ([]Tick
 		if len(tickers) == 0 {
 			continue
 		}
-		q := url.Values{"symbols": {strings.Join(tickers, ",")}, "range": {"1d"}, "interval": {interval}}
+		q := url.Values{"symbols": {strings.Join(tickers, ",")}, "range": {"1d"}, "interval": {"1d"}}
 		body, err := get(ctx, y.HTTP, y.base()+"/v8/finance/spark?"+q.Encode())
 		if err != nil {
 			return nil, fmt.Errorf("yahoo quotes: %w", err)
