@@ -1,7 +1,7 @@
 {
   "name": "OpenBar",
   "identifier": "dev.margbug.candle",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "out": "../outputs",
   "icon": "assets/icon-macos.png",
   "resources": ["../LICENSE", "../licenses"],
