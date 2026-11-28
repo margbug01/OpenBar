@@ -302,7 +302,11 @@ func (a *application) scalesPage(c *ui.Context, t *ui.Theme, k palette) {
 	row(c, "最新价", func() { a.dropdown(c, "最新价", lastPrices, st.LastPrice, func(v string) { st.LastPrice = v }) })
 	checkRow(c, &st.Countdown, "当前K线结束倒计时", nil)
 	checkRow(c, &st.IndValues, "指标最新值", nil)
-	checkRow(c, &st.HighLow, "可见范围的高低点", nil)
+	row(c, "可见范围的高低点", func() {
+		ui.Checkbox(c.Key("check-高低点K线旁"), &st.HighLowMarks, lang.T("K 线旁")).
+			Tooltip(lang.T("在最高那根 K 线的上影线顶端、最低那根的下影线底端标出价格，跟着 K 线走"))
+		ui.Checkbox(c.Key("check-高低点价格轴上"), &st.HighLow, lang.T("价格轴上"))
+	})
 	section(c, t, "时间坐标")
 	checkRow(c, &st.Weekday, "标签上的星期几", nil)
 	row(c, "日期格式", func() {

@@ -539,6 +539,14 @@ func (a *application) drawChart(p *ui.Painter, r ui.Rect, k palette, hx, hy floa
 		for _, e := range extremes {
 			dash(p, plot.X, mid(y(e)), plot.X+plot.W, mid(y(e)), px, k.cross, "dotted")
 		}
+		if st.HighLowMarks {
+			for _, m := range []struct {
+				i     int
+				price float64
+			}{{hiI, a.bars[hiI].H}, {loI, a.bars[loI].L}} {
+				extremeMark(p, plot, mid(xAt(m.i)), snap(y(m.price)), span(priceText(m.price), size, k.text, 0), k.muted, px)
+			}
+		}
 		a.drawDrawings(p, plot, dm, k)
 	})
 
@@ -614,6 +622,34 @@ func (a *application) drawChart(p *ui.Painter, r ui.Rect, k palette, hx, hy floa
 		bx := min(max(cx-w/2-8, plot.X), plot.X+plot.W-w-16)
 		p.Fill(ui.Rect{X: bx, Y: bottom + 3, W: w + 16, H: timeH - 6}, k.label, 2)
 		label(p, bx+8, bottom+timeH/2, ts, alignStart)
+	}
+}
+
+// extremeMark labels the wick's tip at x, y in plot with sp, on the right
+// of it or, where the label would run off the plot, on the left, a short
+// arrow pointing back at the tip. Off the plot, as on a scale held by hand,
+// it is left out.
+func extremeMark(p *ui.Painter, plot ui.Rect, x, y float32, sp ui.Span, line ui.Color, px float32) {
+	if y < plot.Y || y > plot.Y+plot.H {
+		return
+	}
+	const gap, lead, pad = 3, 14, 4 // from the tip to the arrow, the arrow, the arrow to the text
+	w, h := p.MeasureText(0, sp)
+	reach := gap + lead + pad + w
+	dir := float32(1)
+	if x+reach > plot.X+plot.W-2 && x-reach >= plot.X+2 {
+		dir = -1
+	}
+	ty := min(max(y, plot.Y+h/2+1), plot.Y+plot.H-h/2-1) // a tip by the edge keeps its text whole
+	x0, x1 := x+dir*gap, x+dir*(gap+lead)
+	var head ui.Path
+	head.MoveTo(x0, y).LineTo(x0+dir*6, y-3.5).LineTo(x0+dir*6, y+3.5).Close()
+	p.FillPath(&head, line)
+	p.Line(x0+dir*5, y, x1, ty, px, line)
+	if dir > 0 {
+		label(p, min(x1+pad, plot.X+plot.W-2-w), ty, sp, alignStart)
+	} else {
+		label(p, x1-pad, ty, sp, alignEnd)
 	}
 }
 

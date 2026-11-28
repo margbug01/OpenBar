@@ -34,16 +34,19 @@ type style struct {
 	Logo                               bool // the coin's icon before its name
 
 	// 坐标
-	Scale      string // "", "percent", "log"
-	Buttons    string // the 自动 and 对数 switches: "" while the pointer is on the axis, "always", "never"
-	NoOverlap  bool
-	LastPrice  string // "" label and line, "value", "line", "none"
-	IndValues  bool   // the indicators' newest values on the axes
-	Countdown  bool
-	HighLow    bool
-	Weekday    bool
-	DateFormat string // a Go layout
-	Clock12    bool
+	Scale     string // "", "percent", "log"
+	Buttons   string // the 自动 and 对数 switches: "" while the pointer is on the axis, "always", "never"
+	NoOverlap bool
+	LastPrice string // "" label and line, "value", "line", "none"
+	IndValues bool   // the indicators' newest values on the axes
+	Countdown bool
+	HighLow   bool // the highest and lowest prices in sight, labeled on the price axis
+	// HighLowMarks labels them beside their bars, at the tips of the wicks,
+	// as TradingView and 同花顺 do.
+	HighLowMarks bool
+	Weekday      bool
+	DateFormat   string // a Go layout
+	Clock12      bool
 
 	// 版面
 	Theme                   string // "", "light", "dark"
@@ -68,7 +71,7 @@ func defaultStyle() style {
 	return style{
 		Body: true, Borders: true, Wick: true, Volume: true, Precision: -1,
 		Title: true, Values: true, Change: true, VolumeValue: true, Logo: true,
-		NoOverlap: true, IndValues: true, Countdown: true, Weekday: true, DateFormat: "2006-01-02",
+		NoOverlap: true, IndValues: true, Countdown: true, HighLowMarks: true, Weekday: true, DateFormat: "2006-01-02",
 		VertGrid: true, HorzGrid: true, BreakWidth: 1, TextSize: 11, TopMargin: 8, BottomMargin: 22, RightBars: 6,
 	}
 }

@@ -839,4 +839,9 @@ var en = map[string]string{
 	"打开布局 %s": "Open layout %s",
 	"删除布局 %s": "Delete layout %s",
 	"设置没存上，正在重试；现在关掉会丢掉刚才的改动：%s": "Couldn't save the settings, retrying. Quitting now loses the latest changes: %s",
+
+	// The high and low beside their bars.
+	"K 线旁": "Beside the bars",
+	"价格轴上": "On the price axis",
+	"在最高那根 K 线的上影线顶端、最低那根的下影线底端标出价格，跟着 K 线走": "Label the prices at the tip of the highest bar's wick and of the lowest bar's, moving with the bars",
 }
