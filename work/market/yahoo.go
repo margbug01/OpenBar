@@ -16,9 +16,9 @@ import (
 )
 
 // Yahoo reads the chart, spark and search endpoints behind Yahoo Finance's
-// own pages, for CME futures and US stocks. They need no key, are not a
-// published API, and can change or throttle without notice. From mainland
-// China they take a proxy (the system's, like binance.com's).
+// own pages, for CME futures, US stocks and currency pairs. They need no
+// key, are not a published API, and can change or throttle without notice.
+// From mainland China they take a proxy (the system's, like binance.com's).
 //
 // CME futures come 10 minutes late: Yahoo has no licence to show them live,
 // and no free source does. The prices are the exchange's own trades, on the
@@ -47,7 +47,7 @@ func (y Yahoo) base() string {
 
 // An Instrument is a market Yahoo serves, as OpenBar names it: "CME:NQ" for a
 // futures contract (the front month, rolled as Yahoo rolls it), "US:AAPL"
-// for a stock or ETF listed in New York.
+// for a stock or ETF listed in New York, "FX:EURUSD" for a currency pair.
 type Instrument struct {
 	ID     string  // "CME:NQ", "US:AAPL"
 	Code   string  // what it reads as: "NQ", "AAPL"
@@ -60,6 +60,7 @@ type Instrument struct {
 	Pinyin string        // the pinyin of its Chinese names, a syllable a word: "ying wei da"
 	Rank   int           // its place among the most looked up (Popular), 1 first, 0 none
 	Index  bool          // an index (上证指数, VIX), found by its names as a future is
+	FX     bool          // a currency pair, which Yahoo has with no volume
 	// Loc and Opens are its exchange's clock and when its day opens there,
 	// for the day lines and the 4-hour bars; nil, New York's at 9:30.
 	Loc   *time.Location
@@ -87,9 +88,9 @@ func future(code, name, pinyin string, tick float64) Instrument {
 }
 
 // IsYahoo is whether OpenBar's name for a market is one of Yahoo's: a CME
-// future, a US stock, a Korean one or the VIX.
+// future, a US stock, a Korean one, the VIX or a currency pair.
 func IsYahoo(id string) bool {
-	for _, p := range []string{"CME:", "US:", "KRX:", "CBOE:"} {
+	for _, p := range []string{"CME:", "US:", "KRX:", "CBOE:", "FX:"} {
 		if strings.HasPrefix(id, p) {
 			return true
 		}
@@ -105,6 +106,9 @@ func InstrumentOf(id string) (Instrument, bool) {
 	}
 	if i := slices.IndexFunc(Futures, func(f Instrument) bool { return f.ID == id }); i >= 0 {
 		return Futures[i], true
+	}
+	if i := slices.IndexFunc(Forex, func(f Instrument) bool { return f.ID == id }); i >= 0 {
+		return Forex[i], true
 	}
 	return listedOf(id)
 }
@@ -177,6 +181,11 @@ func rthStart(t int64) int64 {
 // four from the session's start, and for a future's regular hours bars
 // opening from 9:30 on, from Yahoo's that divide both (its hours open on
 // the hour: an hour from 9:30 is two half hours, which go back 60 days).
+//
+// A currency pair's days are its hours from midnight in London: Yahoo's own
+// days close at the day before's close (over two years of EUR/USD, 23 basis
+// points off the hours' close at the median, 3 off the next day's), so they
+// go back as far as its hours do, 730 days.
 func (y Yahoo) plan(in Instrument, interval string) (barPlan, bool) {
 	p := barPlan{group: 1, start: in.SessionStart}
 	switch interval {
@@ -186,6 +195,9 @@ func (y Yahoo) plan(in Instrument, interval string) (barPlan, bool) {
 		p.src, p.group = yahooIntervals["1h"], 4
 	case "1d":
 		p.src = yahooIntervals["1d"]
+		if in.FX {
+			p.src, p.group = yahooIntervals["1h"], 24
+		}
 	case "1w":
 		p.src = yahooIntervals["1wk"]
 	default:
@@ -218,7 +230,8 @@ var newYork = func() *time.Location {
 // SessionStart is when the session holding t (Unix ms) began: a stock's at
 // 9:30 New York time that day, a future's at 18:00 the evening before, and
 // another market's when it opens on its own clock that day (Shanghai's at
-// 9:30, Seoul's at 9:00, the VIX's at 3:00 in New York).
+// 9:30, Seoul's at 9:00, the VIX's at 3:00 in New York, a currency pair's at
+// midnight in London).
 func (in Instrument) SessionStart(t int64) int64 {
 	if !in.Future {
 		loc, opens := newYork, hm(9, 30)
@@ -302,7 +315,8 @@ func (y Yahoo) Klines(ctx context.Context, symbol, interval string, end int64, l
 
 // groupBars merges bars of ms each into bars of n of them, starting from the
 // session's first: four hours from 18:00 for a future, from 9:30 for a stock
-// or a future's regular hours.
+// or a future's regular hours; a day of them is the session, 23 or 25 hours
+// long when the clocks change.
 // Groups beginning before from are missing bars and left out.
 func groupBars(bars []Bar, n int, ms int64, sessionStart func(int64) int64, from int64) []Bar {
 	size := ms * int64(n)
@@ -310,6 +324,9 @@ func groupBars(bars []Bar, n int, ms int64, sessionStart func(int64) int64, from
 	for _, b := range bars {
 		s := sessionStart(b.T)
 		key := s + (b.T-s)/size*size
+		if size >= 86_400_000 {
+			key = s
+		}
 		if key < from {
 			continue
 		}
@@ -401,8 +418,9 @@ func (y Yahoo) Stream(ctx context.Context, symbol, interval string, fn func(bar 
 	}
 }
 
-// Symbols looks markets up: a future from the table, a stock from its chart's
-// heading, for its name and how many decimals its prices take.
+// Symbols looks markets up: a future or a currency pair from the table, a
+// stock from its chart's heading, for its name and how many decimals its
+// prices take.
 func (y Yahoo) Symbols(ctx context.Context, names ...string) ([]Symbol, error) {
 	var out []Symbol
 	for _, n := range names {
@@ -411,7 +429,7 @@ func (y Yahoo) Symbols(ctx context.Context, names ...string) ([]Symbol, error) {
 			return nil, fmt.Errorf("yahoo: no market %q", n)
 		}
 		s := Symbol{Name: in.ID, Base: in.Code, Tick: in.Tick, Desc: in.Name}
-		if !in.Future {
+		if !in.Future && !in.FX { // Yahoo's priceHint is 4 for every pair, USD/JPY's too
 			body, err := get(ctx, y.HTTP, y.base()+"/v8/finance/chart/"+url.PathEscape(in.Ticker)+"?interval=1d&range=1d")
 			if err != nil {
 				return nil, fmt.Errorf("yahoo %s: %w", in.Code, err)
@@ -459,8 +477,34 @@ func parseMeta(body []byte) (yahooMeta, error) {
 }
 
 // Quotes is the last price and the last session's close of each market, in
-// one request a score of them.
+// one request a score of them. A currency pair's last price comes from its
+// hours: its last day's close is the day before's (see plan).
 func (y Yahoo) Quotes(ctx context.Context, ids []string) ([]Ticker, error) {
+	var out []Ticker
+	var pairs, rest []string
+	for _, id := range ids {
+		if in, _ := InstrumentOf(id); in.FX {
+			pairs = append(pairs, id)
+		} else {
+			rest = append(rest, id)
+		}
+	}
+	for _, g := range []struct {
+		ids      []string
+		interval string
+	}{{rest, "1d"}, {pairs, "1h"}} {
+		got, err := y.spark(ctx, g.ids, g.interval)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, got...)
+	}
+	slices.SortFunc(out, func(a, b Ticker) int { return cmp.Compare(a.Symbol, b.Symbol) })
+	return out, nil
+}
+
+// spark asks for the quotes of ids over a day of bars of interval.
+func (y Yahoo) spark(ctx context.Context, ids []string, interval string) ([]Ticker, error) {
 	var out []Ticker
 	for i := 0; i < len(ids); i += 20 {
 		chunk := ids[i:min(i+20, len(ids))]
@@ -475,7 +519,7 @@ func (y Yahoo) Quotes(ctx context.Context, ids []string) ([]Ticker, error) {
 		if len(tickers) == 0 {
 			continue
 		}
-		q := url.Values{"symbols": {strings.Join(tickers, ",")}, "range": {"1d"}, "interval": {"1d"}}
+		q := url.Values{"symbols": {strings.Join(tickers, ",")}, "range": {"1d"}, "interval": {interval}}
 		body, err := get(ctx, y.HTTP, y.base()+"/v8/finance/spark?"+q.Encode())
 		if err != nil {
 			return nil, fmt.Errorf("yahoo quotes: %w", err)

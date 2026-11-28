@@ -66,10 +66,15 @@ func TestParseChartFoldsTheQuote(t *testing.T) {
 }
 
 // A stock's sessions begin at 9:30 New York time, a future's at 18:00 the
-// evening before, summer and winter.
+// evening before, a currency pair's at midnight in London (Yahoo's days),
+// summer and winter.
 func TestSessionStart(t *testing.T) {
 	nq, _ := InstrumentOf("CME:NQ")
 	aapl, _ := InstrumentOf("US:AAPL")
+	eur, _ := InstrumentOf("FX:EURUSD")
+	utc := func(m time.Month, d, h, min int) int64 {
+		return time.Date(2026, m, d, h, min, 0, 0, time.UTC).UnixMilli()
+	}
 	ny := func(y int, m time.Month, d, h, min int) int64 {
 		return time.Date(y, m, d, h, min, 0, 0, newYork).UnixMilli()
 	}
@@ -83,6 +88,9 @@ func TestSessionStart(t *testing.T) {
 		{nq, ny(2026, 1, 15, 3, 0), ny(2026, 1, 14, 18, 0)},
 		{aapl, ny(2026, 10, 28, 15, 55), ny(2026, 10, 28, 9, 30)},
 		{aapl, ny(2026, 1, 15, 10, 30), ny(2026, 1, 15, 9, 30)},
+		{eur, utc(11, 27, 21, 0), utc(11, 27, 0, 0)},
+		{eur, utc(7, 2, 23, 30), utc(7, 2, 23, 0)}, // 0:30 on the 3rd in London
+		{eur, utc(7, 2, 22, 30), utc(7, 1, 23, 0)},
 	} {
 		if got := c.in.SessionStart(c.at); got != c.want {
 			t.Errorf("%s at %s: session from %s, want %s", c.in.Code, time.UnixMilli(c.at).In(newYork), time.UnixMilli(got).In(newYork), time.UnixMilli(c.want).In(newYork))
@@ -92,7 +100,8 @@ func TestSessionStart(t *testing.T) {
 
 // Four hours are four hourly bars from the session's beginning: 18:00, 22:00,
 // 2:00… for a future, 9:30 and 13:30 for a stock. A group missing its first
-// bars is left out.
+// bars is left out. A currency pair's day is its hours from midnight in
+// London, 25 of them the day the clocks go back.
 func TestGroupBars(t *testing.T) {
 	nq, _ := InstrumentOf("CME:NQ")
 	aapl, _ := InstrumentOf("US:AAPL")
@@ -126,6 +135,20 @@ func TestGroupBars(t *testing.T) {
 	got = groupBars(day, 4, 3_600_000, aapl.SessionStart, day[0].T)
 	if len(got) != 2 || time.UnixMilli(got[1].T).In(newYork).Format("15:04") != "13:30" || got[0].V != 4 || got[1].V != 3 {
 		t.Fatalf("stock: %+v", got)
+	}
+	eur, _ := InstrumentOf("FX:EURUSD")
+	if p, _ := (Yahoo{}).plan(eur, "1d"); p.src.name != "1h" || p.group != 24 {
+		t.Fatalf("EUR/USD's days from %s, %d to a bar", p.src.name, p.group)
+	}
+	// From 0:00 on Saturday 24 October to 0:00 on Tuesday 27th, London time.
+	days := hourly(time.Date(2026, 10, 24, 0, 0, 0, 0, london), 74, func(time.Time) bool { return false })
+	got = groupBars(days, 24, 3_600_000, eur.SessionStart, days[0].T)
+	opens = nil
+	for _, b := range got {
+		opens = append(opens, time.UnixMilli(b.T).In(london).Format("02 15:04"))
+	}
+	if want := []string{"24 00:00", "25 00:00", "26 00:00", "27 00:00"}; !slices.Equal(opens, want) || got[1].V != 25 || got[1].C != 48 {
+		t.Fatalf("forex: days open at %v, want %v; the 25th %+v", opens, want, got[1])
 	}
 }
 

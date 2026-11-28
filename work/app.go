@@ -770,13 +770,13 @@ var popularByID = func() map[string]market.Instrument {
 }()
 
 // localMarkets are the markets the search finds without asking anyone,
-// beside the pairs and the stocks: the futures and the indices, by code and
-// by Chinese name.
-var localMarkets = append(slices.Clip(market.Futures), market.Indices...)
+// beside the pairs and the stocks: the futures, the currency pairs and the
+// indices, by code and by Chinese name.
+var localMarkets = slices.Concat(market.Futures, market.Forex, market.Indices)
 
 // feedOf is where sym's bars come from: Yahoo for futures, US and Korean
-// stocks and the VIX, Eastmoney for A shares and Hong Kong's, its exchange
-// for a coin's.
+// stocks, the VIX and currency pairs, Eastmoney for A shares and Hong Kong's,
+// its exchange for a coin's.
 func (a *application) feedOf(sym string) market.Feed {
 	switch {
 	case market.IsYahoo(sym):
@@ -1119,6 +1119,13 @@ func lateWhat(sym string) string {
 		return lang.F("%s 指数", lang.T(in.Venue))
 	}
 	return lang.F("%s股票", lang.T(in.Venue))
+}
+
+// hasVolume is whether sym's bars count what traded: a currency pair's, from
+// Yahoo, are all 0.
+func hasVolume(sym string) bool {
+	in, _ := market.InstrumentOf(sym)
+	return !in.FX
 }
 
 // volumeUnit is what a bar's volume counts: coins, contracts or shares.

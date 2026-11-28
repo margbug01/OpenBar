@@ -737,7 +737,7 @@ func (a *application) legendSpans(k palette, i int) (title, spans []ui.Span) {
 		}
 		spans = append(spans, span(formatSigned(move, d)+fmt.Sprintf(" (%+.2f%%)    ", pct), 12, k.move(move), 0))
 	}
-	if st.VolumeValue {
+	if st.VolumeValue && hasVolume(a.symbol) {
 		spans = append(spans, ui.Span{Text: lang.T("量") + " ", Size: 12, Color: k.muted}, span(formatVolume(b.V)+" "+a.volumeUnit(a.symbol), 12, k.text, 0))
 	}
 	return title, spans

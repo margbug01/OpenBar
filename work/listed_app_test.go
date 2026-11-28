@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo/ui"
+
 	"candle/market"
 )
 
@@ -127,7 +129,13 @@ func TestSearchFindsListed(t *testing.T) {
 		{"szzs", nil, []string{"SSE:000001"}},
 		{"000001", found[:1], []string{"SSE:000001", "SZSE:000001"}},
 		{"600795", found[1:], []string{"SSE:600795"}},
-		{"nz", nil, []string{"CME:NQ", "CME:MNQ", "US:QQQ", "US:TQQQ", "US:SQQQ"}}, // as before
+		{"nz", nil, []string{"CME:NQ", "CME:MNQ", "FX:NZDUSD", "US:QQQ", "US:TQQQ", "US:SQQQ"}}, // as before, and NZD/USD by its code
+		{"eurusd", nil, []string{"FX:EURUSD"}},
+		{"eur/usd", nil, []string{"FX:EURUSD"}},
+		{"欧元/美元", nil, []string{"FX:EURUSD"}},
+		{"欧元", nil, []string{"FX:EURUSD", "FX:EURJPY", "FX:EURGBP", "FX:EURCHF", "FX:EURAUD"}},
+		{"oymy", nil, []string{"FX:EURUSD"}},
+		{"rmb", nil, []string{"FX:USDCNH", "FX:USDCNY"}},
 	} {
 		if got := ids(c.q, c.found); !slices.Equal(got, c.want) {
 			t.Errorf("%q: %v, want %v", c.q, got, c.want)
@@ -139,6 +147,67 @@ func TestSearchFindsListed(t *testing.T) {
 	}
 	if !slices.Equal(heads, []string{"港股"}) {
 		t.Fatalf("恒生 under %v", heads)
+	}
+	heads = nil
+	for _, g := range groupHits(searchAll("eurusd", append(pairs, market.Ticker{Symbol: "EURUSDT"}), localMarkets, stocks, nil, 10)) {
+		heads = append(heads, g.sec.label)
+	}
+	if !slices.Equal(heads, []string{"外汇", "加密货币"}) {
+		t.Fatalf("eurusd under %v", heads)
+	}
+}
+
+// A currency pair picked from the search goes on the watchlist under 外汇 and
+// on the chart as EUR/USD, from Yahoo, live, its prices to a tenth of a pip
+// (a yen pair's to three decimals), its days from midnight in London, and no
+// volume read out: Yahoo's is all 0.
+func TestForexOnTheChart(t *testing.T) {
+	a := testApp()
+	a.set.Watch = []string{"BTCUSDT"}
+	a.quotes["FX:EURUSD"] = market.Ticker{Symbol: "FX:EURUSD", Open: 1.0975, Last: 1.0938525199890137}
+	tt := newTester(a, true)
+	a.query = "eur"
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText("外汇") || !tt.HasText("1.09385") {
+		t.Fatal("EUR/USD is not under 外汇 in the results with its price")
+	}
+	click(t, tt, "EUR/USD 欧元/美元")
+	if a.symbol != "FX:EURUSD" || a.set.Watch[0] != "FX:EURUSD" || sectionOf(a.symbol) != "fx" {
+		t.Fatalf("after picking EUR/USD: showing %s, watch %v", a.symbol, a.set.Watch)
+	}
+	if _, ok := a.feedOf(a.symbol).(market.Yahoo); !ok {
+		t.Fatal("EUR/USD not from Yahoo")
+	}
+	bars := fakeBars(600, 3_600_000)
+	for i := range bars {
+		b := &bars[i]
+		b.O, b.H, b.L, b.C, b.V = b.O/72000, b.H/72000, b.L/72000, b.C/72000, 0
+	}
+	a.loading, a.bars, a.atStart, a.stream = false, bars, true, live
+	tt.Frame()
+	tt.Frame()
+	for _, want := range []string{"外汇", " 欧元/美元", "  ·  1小时  ·  外汇", "实时"} {
+		if !tt.HasText(want) {
+			t.Fatalf("no %q", want)
+		}
+	}
+	if _, spans := a.legendSpans(paletteFor(true), len(a.bars)-1); slices.ContainsFunc(spans, func(s ui.Span) bool { return strings.Contains(s.Text, "量") }) {
+		t.Fatalf("the legend reads out a volume: %+v", spans)
+	}
+	if a.priceText("FX:EURUSD", 1.0938525199890137) != "1.09385" || a.priceText("FX:USDJPY", 159.51499938964844) != "159.515" {
+		t.Fatalf("prices %s, %s", a.priceText("FX:EURUSD", 1.0938525199890137), a.priceText("FX:USDJPY", 159.51499938964844))
+	}
+	london, _ := time.LoadLocation("Europe/London")
+	for _, d := range []time.Time{time.Date(2026, 11, 27, 21, 0, 0, 0, london), time.Date(2026, 7, 3, 0, 30, 0, 0, london)} {
+		midnight := time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, london).UnixMilli()
+		if got := a.dayOf()(d.UnixMilli()); got != midnight {
+			t.Fatalf("the day holding %s begins at %s", d, time.UnixMilli(got).In(london))
+		}
+		// Its minutes: the whole day from midnight, nothing of the day before.
+		if from, open, to, minutes := dayWindow(a.symbol, midnight); from != midnight || open != midnight || to != midnight+86_400_000 || minutes != 1440 {
+			t.Fatalf("the minutes of %s: from %d, open %d, to %d, %d a day", d, from, open, to, minutes)
+		}
 	}
 }
 

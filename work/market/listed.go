@@ -14,13 +14,15 @@ import (
 //
 // OpenBar names them by exchange, as TradingView does: SSE:600795 (国电电力),
 // SSE:000001 (上证指数), SZSE:000001 (平安银行), HKEX:00700, HKEX:HSI,
-// KRX:000660, CBOE:VIX.
+// KRX:000660, CBOE:VIX; and the currency pairs FX:EURUSD, from Yahoo too, as
+// they trade.
 
 // The exchanges' clocks.
 var (
 	shanghai = zone("Asia/Shanghai", 8)
 	hongKong = zone("Asia/Hong_Kong", 8)
 	seoul    = zone("Asia/Seoul", 9)
+	london   = zone("Europe/London", 0)
 )
 
 func zone(name string, hours int) *time.Location {
@@ -46,6 +48,46 @@ var Indices = []Instrument{
 	hkIndex("HSI", "100.HSI", "恒生指数", "heng sheng zhi shu"),
 	hkIndex("HSTECH", "124.HSTECH", "恒生科技指数", "heng sheng ke ji zhi shu"),
 	hkIndex("HSCEI", "100.HSCEI", "国企指数", "guo qi zhi shu"),
+}
+
+// Forex are the currency pairs OpenBar offers, from Yahoo (EURUSD=X): the
+// majors, the common crosses and the yuan and Hong Kong dollar. Yahoo's days
+// begin at midnight in London, its weeks on Monday then, and its pairs carry
+// no volume.
+var Forex = []Instrument{
+	fx("EUR", "USD", "欧元/美元", "ou yuan mei yuan"),
+	fx("GBP", "USD", "英镑/美元", "ying bang mei yuan"),
+	fx("USD", "JPY", "美元/日元", "mei yuan ri yuan"),
+	fx("AUD", "USD", "澳元/美元", "ao yuan mei yuan"),
+	fx("USD", "CAD", "美元/加元", "mei yuan jia yuan"),
+	fx("USD", "CHF", "美元/瑞郎", "mei yuan rui lang"),
+	fx("NZD", "USD", "纽元/美元", "niu yuan mei yuan"),
+	fx("EUR", "JPY", "欧元/日元", "ou yuan ri yuan"),
+	fx("GBP", "JPY", "英镑/日元", "ying bang ri yuan"),
+	fx("EUR", "GBP", "欧元/英镑", "ou yuan ying bang"),
+	fx("AUD", "JPY", "澳元/日元", "ao yuan ri yuan"),
+	fx("EUR", "CHF", "欧元/瑞郎", "ou yuan rui lang"),
+	fx("EUR", "AUD", "欧元/澳元", "ou yuan ao yuan"),
+	fx("CAD", "JPY", "加元/日元", "jia yuan ri yuan"),
+	fx("CHF", "JPY", "瑞郎/日元", "rui lang ri yuan"),
+	fx("USD", "CNH", "美元/离岸人民币", "mei yuan li an ren min bi"),
+	fx("USD", "CNY", "美元/人民币", "mei yuan ren min bi"),
+	fx("USD", "HKD", "美元/港元", "mei yuan gang yuan"),
+}
+
+// fx is a currency pair, read as EUR/USD and found by its name with or
+// without the slash (欧元美元). Its prices step by a tenth of a pip: five
+// decimals, a yen pair's three, the onshore yuan's four as it is quoted.
+func fx(base, quote, name, pinyin string) Instrument {
+	tick := 0.00001
+	switch quote {
+	case "JPY":
+		tick = 0.001
+	case "CNY":
+		tick = 0.0001
+	}
+	return Instrument{ID: "FX:" + base + quote, Code: base + "/" + quote, Name: name, Alias: strings.ReplaceAll(name, "/", ""), Pinyin: pinyin,
+		Ticker: base + quote + "=X", Tick: tick, FX: true, Loc: london, Venue: "外汇"}
 }
 
 func cnIndex(ex, code, name, pinyin string) Instrument {
@@ -118,9 +160,12 @@ func IsListed(id string) bool { return IsYahoo(id) || IsEastmoney(id) }
 type session struct{ open, close time.Duration }
 
 // sessions are the parts of in's trading day: A shares break for lunch from
-// 11:30 to 13:00, Hong Kong's from 12:00.
+// 11:30 to 13:00, Hong Kong's from 12:00; a currency pair trades the whole
+// day.
 func (in Instrument) sessions() []session {
 	switch {
+	case in.FX:
+		return []session{{0, 24 * time.Hour}}
 	case in.Loc == shanghai:
 		return []session{{hm(9, 30), hm(11, 30)}, {hm(13, 0), hm(15, 0)}}
 	case in.Loc == hongKong:
@@ -130,7 +175,8 @@ func (in Instrument) sessions() []session {
 }
 
 // Minutes is how long in's trading day is: A shares' 240 minutes, Hong
-// Kong's 330, a US stock's regular 390; 0 where OpenBar does not know it.
+// Kong's 330, a US stock's regular 390, a currency pair's 1440; 0 where
+// OpenBar does not know it.
 func (in Instrument) Minutes() int {
 	if in.Loc == nil && !in.Future && !in.Index {
 		return 390

@@ -19,7 +19,7 @@ import (
 type watchSection struct{ key, label string }
 
 // sections are the markets the watchlist parts, in their first order.
-var sections = []watchSection{{"crypto", "加密货币"}, {"perp", "永续合约"}, {"futures", "期货"}, {"us", "美股"},
+var sections = []watchSection{{"crypto", "加密货币"}, {"perp", "永续合约"}, {"futures", "期货"}, {"fx", "外汇"}, {"us", "美股"},
 	{"cn", "A股"}, {"hk", "港股"}, {"kr", "韩股"}}
 
 // sectionOf is the section a market goes in.
@@ -27,6 +27,8 @@ func sectionOf(sym string) string {
 	switch {
 	case strings.HasPrefix(sym, "CME:"):
 		return "futures"
+	case strings.HasPrefix(sym, "FX:"):
+		return "fx"
 	case strings.HasPrefix(sym, "US:"), strings.HasPrefix(sym, "CBOE:"):
 		return "us"
 	case strings.HasPrefix(sym, "SSE:"), strings.HasPrefix(sym, "SZSE:"):

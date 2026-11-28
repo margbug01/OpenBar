@@ -109,3 +109,66 @@ func TestYahooLive(t *testing.T) {
 		t.Fatalf("stream gave %d bars in 12s", n)
 	}
 }
+
+// TestYahooForexLive asks Yahoo for EUR/USD through the system proxy: its
+// minutes, hours, 4 hours, days and weeks, its quote and its stream.
+// Days open at midnight in London, none on a weekend, 4 hours at 0:00, 4:00…
+// there; no volume. CANDLE_LIVE=1 turns it on.
+func TestYahooForexLive(t *testing.T) {
+	if os.Getenv("CANDLE_LIVE") == "" {
+		t.Skip("CANDLE_LIVE is not set")
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.Proxy = SystemProxy
+	y := Yahoo{HTTP: &http.Client{Transport: tr, Timeout: 30 * time.Second}}
+	ctx := context.Background()
+	in, _ := InstrumentOf("FX:EURUSD")
+	at := func(ms int64) string { return time.UnixMilli(ms).In(london).Format("Mon 01-02 15:04") }
+	var price float64 // the newest hour's close
+	for _, iv := range []string{"1m", "5m", "1h", "4h", "1d", "1w"} {
+		bars, err := y.Klines(ctx, in.ID, iv, 0, 1000)
+		if err != nil || len(bars) == 0 {
+			t.Fatalf("%s: %d bars, %v", iv, len(bars), err)
+		}
+		var vol float64
+		for i, b := range bars {
+			vol += b.V
+			if i > 0 && b.T <= bars[i-1].T {
+				t.Fatalf("%s: bar %d out of order", iv, i)
+			}
+			l := time.UnixMilli(b.T).In(london)
+			switch {
+			case iv == "1d" && (in.SessionStart(b.T) != b.T || l.Weekday() == time.Saturday || l.Weekday() == time.Sunday):
+				t.Fatalf("a day opening %s", at(b.T))
+			case iv == "4h" && (l.Hour()%4 != 0 || l.Minute() != 0):
+				t.Fatalf("4 hours opening %s", at(b.T))
+			}
+		}
+		last := bars[len(bars)-1]
+		if iv == "1h" {
+			price = last.C
+		}
+		t.Logf("%s: %d bars, %s .. %s London, volume %v, last %+v", iv, len(bars), at(bars[0].T), at(last.T), vol, last)
+	}
+	syms, err := y.Symbols(ctx, "FX:EURUSD", "FX:USDJPY")
+	if err != nil || len(syms) != 2 || syms[0].Tick != 0.00001 || syms[1].Tick != 0.001 {
+		t.Fatalf("symbols: %+v, %v", syms, err)
+	}
+	q, err := y.Quotes(ctx, []string{"FX:EURUSD", "FX:USDJPY", "FX:USDCNH", "FX:USDCNY", "FX:USDHKD"})
+	if err != nil || len(q) != 5 || q[0].Symbol != "FX:EURUSD" || math.Abs(q[0].Last-price) > 0.0005 {
+		t.Fatalf("quotes, EUR/USD's newest hour closing at %v: %+v, %v", price, q, err)
+	}
+	t.Logf("quotes: %+v", q)
+	ctx2, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	n := 0
+	y.Stream(ctx2, "FX:EURUSD", "1m", func(b Bar, _ bool, at int64) {
+		n++
+		if n <= 2 {
+			t.Logf("stream: %s %+v (%.1f min behind)", time.UnixMilli(b.T).In(london).Format("Mon 15:04"), b, float64(at-b.T)/60000)
+		}
+	})
+	if n == 0 {
+		t.Fatal("the stream gave no bars")
+	}
+}

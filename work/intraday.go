@@ -20,6 +20,7 @@ type intraday struct {
 	prev     float64 // the close the day before, 0 unknown
 	minutes  int     // the minutes a whole day trades, 0 unknown
 	decimals int
+	volume   bool // whether the bars count what traded: a currency pair's do not, nor have an average
 	bars     []market.Bar
 	iv       string // the bars' size: "1m", or "5m" for days whose minutes are gone
 	loading  bool
@@ -51,7 +52,7 @@ func (a *application) openIntraday(x, y float32) bool {
 	at := time.UnixMilli(b.T).In(a.set.Chart.loc())
 	d := &intraday{
 		title: lang.F("%s 分时 · %s %s", base+a.after(a.symbol), at.Format("2006-01-02"), weekday(at)),
-		day:   b, decimals: a.chartDecimals(b.C), loading: true,
+		day:   b, decimals: a.chartDecimals(b.C), volume: hasVolume(a.symbol), loading: true,
 	}
 	if i > 0 {
 		d.prev = a.bars[i-1].C
@@ -80,14 +81,18 @@ func (a *application) openIntraday(x, y float32) bool {
 // dayWindow is when the bars of sym's day opening at t open, from to to,
 // when it opens and how many minutes it trades (0 unknown). A future's day
 // begins the evening before; the auction before a market opens belongs to
-// its day. Only Binance trades round the clock.
+// its day. Binance and the currency pairs trade round the clock.
 func dayWindow(sym string, t int64) (from, open, to int64, minutes int) {
 	in, ok := market.InstrumentOf(sym)
 	if !ok {
 		return t, t, t + 86_400_000, 1440
 	}
 	open = in.SessionStart(t)
-	return open - 10*60_000, open, open + 86_400_000, in.Minutes()
+	from = open - 10*60_000
+	if in.FX {
+		from = open
+	}
+	return from, open, open + 86_400_000, in.Minutes()
 }
 
 func (a *application) closeIntraday() {
@@ -208,7 +213,9 @@ func (d *intraday) summary(k palette) []ui.Span {
 	if d.prev > 0 {
 		out = append(out, span(formatSigned(b.C-d.prev, d.decimals)+" ("+pctText((b.C/d.prev-1)*100, 2)+")   ", 13, col, 400))
 	}
-	out = append(out, span(lang.T("量")+" ", 13, k.muted, 400), span(formatVolume(b.V), 13, k.text, 400))
+	if d.volume {
+		out = append(out, span(lang.T("量")+" ", 13, k.muted, 400), span(formatVolume(b.V), 13, k.text, 400))
+	}
 	switch d.iv {
 	case "1m":
 		out = append(out, span("   · "+lang.T("1 分钟"), 13, k.muted, 400))
@@ -234,7 +241,10 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 	if plot.W <= 0 || plot.H <= 0 {
 		return
 	}
-	priceH := plot.H * 0.72
+	priceH := plot.H
+	if d.volume {
+		priceH = plot.H * 0.72
+	}
 	volTop, volH := plot.Y+priceH+gap, plot.H-priceH-gap
 	ivMs := int64(60_000)
 	if d.iv == "5m" {
@@ -265,7 +275,9 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 	y := func(v float64) float32 { return plot.Y + float32((ref+far-v)/(2*far))*priceH }
 
 	outline(p, ui.Rect{X: plot.X, Y: plot.Y, W: plot.W, H: priceH}, px, k.line)
-	outline(p, ui.Rect{X: plot.X, Y: volTop, W: plot.W, H: volH}, px, k.line)
+	if d.volume {
+		outline(p, ui.Rect{X: plot.X, Y: volTop, W: plot.W, H: volH}, px, k.line)
+	}
 	for _, f := range []float64{1, 0.5, 0, -0.5, -1} {
 		v := ref + f*far
 		yy := mid(y(v))
@@ -300,10 +312,12 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 		}
 	}
 	mean, line := liner{p: p, w: 1.2, c: k.amber}, liner{p: p, w: 1.5, c: k.accent}
-	for i := range d.bars {
-		mean.lineTo(x(i), y(avg[i]))
+	if d.volume {
+		for i := range d.bars {
+			mean.lineTo(x(i), y(avg[i]))
+		}
+		mean.flush()
 	}
-	mean.flush()
 	for i, b := range d.bars {
 		line.lineTo(x(i), y(b.C))
 	}
@@ -331,6 +345,13 @@ func (d *intraday) draw(p *ui.Painter, r ui.Rect, k palette, loc *time.Location,
 	xx := mid(x(i))
 	dash(p, xx, plot.Y, xx, plot.Y+plot.H, px, k.cross, "")
 	p.Fill(ui.Rect{X: xx - 2, Y: y(b.C) - 2, W: 4, H: 4}, k.accent, 2)
-	label(p, plot.X+8, plot.Y+12, span(clock(b.T)+"   "+lang.T("价")+" "+formatPrice(b.C, d.decimals)+"   "+lang.T("均")+" "+formatPrice(avg[i], d.decimals)+"   "+
-		pctText((b.C/ref-1)*100, 2)+"   "+lang.T("量")+" "+formatVolume(b.V), 12, k.text, 400), alignStart)
+	text := clock(b.T) + "   " + lang.T("价") + " " + formatPrice(b.C, d.decimals)
+	if d.volume {
+		text += "   " + lang.T("均") + " " + formatPrice(avg[i], d.decimals)
+	}
+	text += "   " + pctText((b.C/ref-1)*100, 2)
+	if d.volume {
+		text += "   " + lang.T("量") + " " + formatVolume(b.V)
+	}
+	label(p, plot.X+8, plot.Y+12, span(text, 12, k.text, 400), alignStart)
 }
