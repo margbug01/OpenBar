@@ -64,6 +64,8 @@ type application struct {
 	cross      crossPoint             // where the crosshair is, this frame
 	splitHeld  string                 // the line between charts being dragged
 	layoutMenu bool                   // the layout menu is open
+	watchMenu  bool                   // the menu of where the watchlist goes is open
+	watchBand  ui.Rect                // the watchlist's band under the charts, as the last frame had it
 	area       ui.Rect                // the charts' area in the window, as the last frame had it
 	clock      int64                  // Binance's clock minus this machine's, ms
 

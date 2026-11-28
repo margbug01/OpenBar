@@ -65,6 +65,11 @@ type style struct {
 	TextColor               hexColor
 	TopMargin, BottomMargin float64 // percent of the plot left above and below the candles
 	RightBars               float64 // room right of the newest bar, in bars
+	// Watchlist is where the search and the watchlist go: "" in a column
+	// right of the charts, "bottom" in a band under them WatchH high,
+	// "hidden" nowhere.
+	Watchlist string
+	WatchH    float64
 }
 
 func defaultStyle() style {
@@ -73,6 +78,7 @@ func defaultStyle() style {
 		Title: true, Values: true, Change: true, VolumeValue: true, Logo: true,
 		NoOverlap: true, IndValues: true, Countdown: true, HighLowMarks: true, Weekday: true, DateFormat: "2006-01-02",
 		VertGrid: true, HorzGrid: true, BreakWidth: 1, TextSize: 11, TopMargin: 8, BottomMargin: 22, RightBars: 6,
+		WatchH: 220,
 	}
 }
 
@@ -99,6 +105,14 @@ func (st *style) fix() {
 	}
 	if st.BreakWidth < 1 || st.BreakWidth > 4 {
 		st.BreakWidth = d.BreakWidth
+	}
+	switch st.Watchlist {
+	case "", "bottom", "hidden":
+	default:
+		st.Watchlist = ""
+	}
+	if st.WatchH < watchMinH || st.WatchH > 4000 {
+		st.WatchH = d.WatchH
 	}
 }
 
@@ -255,6 +269,7 @@ var (
 	lastPrices  = []option{{"", "价格标签和价格线"}, {"value", "只显示价格标签"}, {"line", "只显示价格线"}, {"none", "隐藏"}}
 	clocks      = []option{{"", "24 小时"}, {"12", "12 小时"}}
 	themes      = []option{{"", "跟随系统"}, {"light", "浅色"}, {"dark", "深色"}}
+	watchPlaces = []option{{"", "放在图表右边"}, {"bottom", "放在图表下方"}, {"hidden", "隐藏"}}
 	crossStyles = []option{{"", "虚线"}, {"dotted", "点线"}, {"solid", "实线"}}
 	lineWidths  = []option{{"1", "1 像素"}, {"2", "2 像素"}, {"3", "3 像素"}, {"4", "4 像素"}}
 	textSizes   = []option{{"10", "10"}, {"11", "11"}, {"12", "12"}, {"13", "13"}, {"14", "14"}}

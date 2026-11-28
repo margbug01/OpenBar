@@ -332,6 +332,11 @@ func dayStarts(st *style) []option {
 
 func (a *application) canvasPage(c *ui.Context, t *ui.Theme, k palette) {
 	st := &a.set.Chart
+	section(c, t, "窗口")
+	row(c, "自选列表", func() {
+		a.dropdown(c, "自选列表", watchPlaces, st.Watchlist, func(v string) { st.Watchlist = v }).
+			Tooltip(lang.T("搜索框和自选列表放在哪里；顶栏右边的按钮也能换，放在下方时拖它的上沿调高度"))
+	})
 	section(c, t, "图表")
 	row(c, "主题", func() {
 		a.dropdown(c, "主题", themes, st.Theme, func(v string) {

@@ -849,4 +849,14 @@ var en = map[string]string{
 	"画图":       "Draw",
 	"画图工具栏：展开": "Drawing tools: show",
 	"画图工具栏：收起": "Drawing tools: hide",
+
+	// Where the watchlist goes.
+	"自选列表":   "Watchlist",
+	"放在图表右边": "Right of the chart",
+	"放在图表下方": "Under the chart",
+	"搜索框和自选列表放在哪里；顶栏右边的按钮也能换，放在下方时拖它的上沿调高度": "Where the search and the watchlist go. The button at the top right switches it too; under the chart, drag its top edge to resize it",
+	"拖动调整自选列表的高度":       "Drag to resize the watchlist",
+	"自选列表的位置":           "Watchlist position",
+	"自选列表：放在右边、下方，或者隐藏": "Watchlist: right, under the chart, or hidden",
+	"自选列表：%s":           "Watchlist: %s",
 }

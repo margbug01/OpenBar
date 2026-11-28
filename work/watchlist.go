@@ -159,8 +159,10 @@ type sectionDrag struct{ key string }
 
 var chevronIcon = svg("<path d='m6 3.5 4.5 4.5-4.5 4.5'/>")
 
-// watchlistRows shows the watchlist in its sections.
-func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette) {
+// watchlistRows shows the watchlist in its sections, the markets of each
+// in cols columns, a heading across them; in one column a market is
+// dragged to another place in its section.
+func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette, cols int) {
 	rows := a.watchRows()
 	if len(rows) == 0 {
 		ui.Text(c, lang.T("在上面搜索币、期货或美股，点一下就会加进来")).FontSize(12).TextColor(t.TextMuted).Padding(12)
@@ -181,7 +183,7 @@ func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette) {
 	}
 	var drop, open, folding string
 	var moved [2]string
-	ui.List(c.Key("watch"), l, len(rows), func(i int) {
+	row := func(i int) {
 		r := rows[i]
 		if r.sym == "" {
 			if f, m := a.sectionHeading(c, t, k, r); f {
@@ -199,7 +201,22 @@ func (a *application) watchlistRows(c *ui.Context, t *ui.Theme, k palette) {
 		case o && r.sym != a.symbol:
 			open = r.sym
 		}
-	}).Grow(1).FillWidth().MinHeight(0)
+	}
+	if cols > 1 {
+		ui.Scroll(c.Key("watch-grid")).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			ui.Grid(c).Columns(cols).GapX(16).FillWidth().Padding(0, 8, 8, 0).Children(func() {
+				for i, r := range rows {
+					if r.sym == "" {
+						ui.Box(c.Key("watch-heading-" + r.sec.key)).ColumnSpan(-1).Children(func() { row(i) })
+					} else {
+						row(i)
+					}
+				}
+			})
+		})
+	} else {
+		ui.List(c.Key("watch"), l, len(rows), row).Grow(1).FillWidth().MinHeight(0)
+	}
 	switch {
 	case drop != "":
 		a.unwatch(drop)

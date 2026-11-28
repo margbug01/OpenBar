@@ -15,8 +15,11 @@ import (
 
 const (
 	titleBarHeight = 44
-	watchW         = 330
-	notch          = 99 // DIPs a wheel notch scrolls on Windows: 3 lines of 33
+	watchW         = 330 // the watchlist's column on the right
+	watchMinH      = 120 // its band under the charts at the lowest
+	watchCellW     = 300 // a market's row in the band at the narrowest
+	chartMinH      = 200 // the charts over the band at the lowest
+	notch          = 99  // DIPs a wheel notch scrolls on Windows: 3 lines of 33
 	zoomPerNotch   = 1.12
 	axisDrag       = 150 // DIPs dragged down the price axis to widen the prices e times
 )
@@ -48,9 +51,19 @@ func (a *application) render(c *ui.Context) {
 			if a.set.DrawTools {
 				a.toolsColumn(c, t, k)
 			}
-			a.chartArea(c, t, k)
-			a.watchlist(c, t, k)
+			ui.Column(c).Grow(1).FillHeight().MinWidth(0).Children(func() {
+				a.chartArea(c, t, k)
+				if a.set.Chart.Watchlist == "bottom" {
+					a.watchBandView(c, t, k)
+				}
+			})
+			if a.set.Chart.Watchlist == "" {
+				a.watchlist(c, t, k)
+			}
 		})
+		// The moves of the watchlist's markets and the headline's, the list
+		// shown or not.
+		a.askDayOpens(append(slices.Clone(a.set.Watch), a.symbol))
 		a.settingsDialog(c, t, k)
 		a.indicatorsDialog(c, t, k)
 		a.indicatorDialog(c, t, k)
@@ -94,6 +107,7 @@ func (a *application) toolbar(c *ui.Context, t *ui.Theme, k palette) {
 		a.layoutButton(c, t, k)
 		ui.Box(c).Grow(1).FillHeight().DragWindow()
 		a.updateBadge(c, t, k)
+		a.watchButton(c, t, k)
 		a.gearButton(c, t, k)
 		a.status(c, t, k)
 		ui.Box(c).Width(bar.Right).Shrink(0)
@@ -232,7 +246,7 @@ func (a *application) status(c *ui.Context, t *ui.Theme, k palette) {
 
 // chartArea is the charts as the layout has them.
 func (a *application) chartArea(c *ui.Context, t *ui.Theme, k palette) {
-	area := ui.Box(c.Key("chart-area")).Grow(1).FillHeight().MinWidth(0)
+	area := ui.Box(c.Key("chart-area")).Grow(1).FillWidth().MinHeight(0)
 	a.area = area.Bounds()
 	// The pointer is over the charts only with nothing on top of them: a
 	// dialog's backdrop takes the hover, though the pointer is inside them.
@@ -610,9 +624,100 @@ func (a *application) watchlist(c *ui.Context, t *ui.Theme, k palette) {
 			return
 		}
 		header(c, t, "自选", "涨跌")
-		a.watchlistRows(c, t, k)
+		a.watchlistRows(c, t, k, 1)
 	})
-	a.askDayOpens(append(slices.Clone(a.set.Watch), a.symbol))
+}
+
+// watchBandView is the watchlist in a band under the charts, as wide as
+// they are, its top edge dragged to make it higher or lower: the search
+// over it, the watched markets in as many columns as fit, and what the
+// search finds in a column of its own on the left while it finds.
+func (a *application) watchBandView(c *ui.Context, t *ui.Theme, k palette) {
+	st := &a.set.Chart
+	_, wh := c.Size()
+	top := max(wh-titleBarHeight-chartMinH, watchMinH)
+	h := min(float32(st.WatchH), top)
+	band := ui.Column(c.Key("watch-band")).FillWidth().Height(h).Shrink(0)
+	a.watchBand = band.Bounds()
+	cols := max(int(a.watchBand.W/watchCellW), 1)
+	band.Children(func() {
+		grip := ui.Box(c.Key("watch-grip")).FillWidth().Height(5).Shrink(0).Cursor(ui.CursorResizeRow).
+			Label(lang.T("拖动调整自选列表的高度"))
+		edge, thick := k.line, float32(1)
+		if grip.Hovered() || grip.Dragging() {
+			edge, thick = k.accent.Alpha(0.6), 3
+		}
+		grip.Children(func() { ui.Box(c).FillWidth().Height(thick).Background(edge) })
+		if _, dy, ok := grip.Dragged(); ok && dy != 0 {
+			st.WatchH = float64(min(max(h-dy, watchMinH), top))
+			c.Invalidate()
+		}
+		if _, _, ended := grip.DragEnded(); ended {
+			a.save()
+		}
+		ui.Box(c).Width(watchW).Shrink(0).Padding(2, 12, 8, 12).Children(func() { a.searchBox(c, t, k) })
+		ui.Row(c).FillWidth().Grow(1).MinHeight(0).Children(func() {
+			if a.searchQuery() != "" {
+				ui.Column(c).Width(watchW).FillHeight().Shrink(0).BorderWidth(0, 1, 0, 0).BorderColor(k.line).Children(func() {
+					a.results(c, t, k)
+				})
+				cols = max(int((a.watchBand.W-watchW)/watchCellW), 1)
+			}
+			ui.Column(c).Grow(1).FillHeight().MinWidth(0).Children(func() { a.watchlistRows(c, t, k, cols) })
+		})
+	})
+}
+
+// The places the watchlist can go, each with its icon.
+var (
+	watchRightIcon  = svg("<rect x='1.5' y='2.5' width='13' height='11' rx='1.5'/><path d='M10 2.5v11'/>")
+	watchBottomIcon = svg("<rect x='1.5' y='2.5' width='13' height='11' rx='1.5'/><path d='M1.5 9.5h13'/>")
+	watchHiddenIcon = svg("<rect x='1.5' y='2.5' width='13' height='11' rx='1.5'/>")
+	watchIcons      = map[string]*ui.SVG{"": watchRightIcon, "bottom": watchBottomIcon, "hidden": watchHiddenIcon}
+)
+
+// watchButton, in the title bar, opens a menu of where the watchlist goes:
+// on the right, under the charts or nowhere, which it brings back from.
+func (a *application) watchButton(c *ui.Context, t *ui.Theme, k palette) {
+	st := &a.set.Chart
+	b := ui.ButtonBase(c.Key("watch-place")).Size(30, 30).Shrink(0).Margin(0, 4, 0, 0).Center().Radius(6).Cursor(ui.CursorPointer).
+		Label(lang.T("自选列表的位置")).Tooltip(lang.T("自选列表：放在右边、下方，或者隐藏"))
+	switch {
+	case a.watchMenu:
+		b.Background(k.chosen)
+	case b.Hovered():
+		b.Background(k.hover)
+	}
+	b.Children(func() { ui.Icon(c, watchIcons[st.Watchlist]).Size(16, 16).TextColor(t.TextMuted) })
+	if b.Clicked() {
+		a.watchMenu = !a.watchMenu
+	}
+	ui.Popover(c, b, &a.watchMenu, func() {
+		ui.Column(c).Width(200).Padding(4).Gap(2).Children(func() {
+			for _, o := range watchPlaces {
+				chosen := st.Watchlist == o.key
+				item := ui.Row(c.Key("watch-place-"+o.key)).FillWidth().Height(32).Padding(0, 10).Gap(10).AlignItems(ui.Center).Radius(4).
+					Cursor(ui.CursorPointer).Label(lang.F("自选列表：%s", lang.T(o.label)))
+				col := t.Text
+				switch {
+				case chosen:
+					item.Background(k.chosen)
+					col = k.accent
+				case item.Hovered():
+					item.Background(k.hover)
+				}
+				item.Children(func() {
+					ui.Icon(c, watchIcons[o.key]).Size(16, 16).TextColor(col)
+					ui.Text(c, lang.T(o.label)).FontSize(13).TextColor(col).SingleLine()
+				})
+				if item.Clicked() {
+					a.watchMenu = false
+					st.Watchlist = o.key
+					a.save()
+				}
+			}
+		})
+	})
 }
 
 func header(c *ui.Context, t *ui.Theme, title, change string) {
